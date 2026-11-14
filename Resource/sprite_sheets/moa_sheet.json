@@ -1,0 +1,222 @@
+{
+  "image": "moa_sheet.png",
+  "cell_w": 336,
+  "cell_h": 272,
+  "columns": 10,
+  "rows_total": 30,
+  "note": "row 0이 이미지 맨 위. pico2d: left = frame*cell_w, bottom = (rows_total-1-row)*cell_h",
+  "rows": {
+    "idle_down": {
+      "row": 0,
+      "frames": 8,
+      "fps": 8,
+      "loop": true,
+      "label": "대기 · 아래"
+    },
+    "idle_left": {
+      "row": 1,
+      "frames": 8,
+      "fps": 8,
+      "loop": true,
+      "label": "대기 · 왼쪽"
+    },
+    "idle_right": {
+      "row": 2,
+      "frames": 8,
+      "fps": 8,
+      "loop": true,
+      "label": "대기 · 오른쪽"
+    },
+    "idle_up": {
+      "row": 3,
+      "frames": 8,
+      "fps": 8,
+      "loop": true,
+      "label": "대기 · 위"
+    },
+    "move_down": {
+      "row": 4,
+      "frames": 10,
+      "fps": 12,
+      "loop": true,
+      "label": "이동 · 아래"
+    },
+    "move_left": {
+      "row": 5,
+      "frames": 10,
+      "fps": 12,
+      "loop": true,
+      "label": "이동 · 왼쪽"
+    },
+    "move_right": {
+      "row": 6,
+      "frames": 10,
+      "fps": 12,
+      "loop": true,
+      "label": "이동 · 오른쪽"
+    },
+    "move_up": {
+      "row": 7,
+      "frames": 10,
+      "fps": 12,
+      "loop": true,
+      "label": "이동 · 위"
+    },
+    "dodge_down": {
+      "row": 8,
+      "frames": 8,
+      "fps": 16,
+      "loop": false,
+      "label": "회피 · 아래"
+    },
+    "dodge_left": {
+      "row": 9,
+      "frames": 8,
+      "fps": 16,
+      "loop": false,
+      "label": "회피 (Space) · 왼쪽"
+    },
+    "dodge_right": {
+      "row": 10,
+      "frames": 8,
+      "fps": 16,
+      "loop": false,
+      "label": "회피 (Space) · 오른쪽"
+    },
+    "dodge_up": {
+      "row": 11,
+      "frames": 8,
+      "fps": 16,
+      "loop": false,
+      "label": "회피 · 위"
+    },
+    "melee_down": {
+      "row": 12,
+      "frames": 9,
+      "fps": 16,
+      "loop": false,
+      "label": "근접 기술 · 아래"
+    },
+    "melee_left": {
+      "row": 13,
+      "frames": 9,
+      "fps": 16,
+      "loop": false,
+      "label": "근접 기술 사용 · 왼쪽"
+    },
+    "melee_right": {
+      "row": 14,
+      "frames": 9,
+      "fps": 16,
+      "loop": false,
+      "label": "근접 기술 사용 · 오른쪽"
+    },
+    "melee_up": {
+      "row": 15,
+      "frames": 9,
+      "fps": 16,
+      "loop": false,
+      "label": "근접 기술 · 위"
+    },
+    "ranged_down": {
+      "row": 16,
+      "frames": 9,
+      "fps": 14,
+      "loop": false,
+      "label": "원거리 기술 · 아래"
+    },
+    "ranged_left": {
+      "row": 17,
+      "frames": 9,
+      "fps": 14,
+      "loop": false,
+      "label": "원거리 기술 사용 · 왼쪽"
+    },
+    "ranged_right": {
+      "row": 18,
+      "frames": 9,
+      "fps": 14,
+      "loop": false,
+      "label": "원거리 기술 사용 · 오른쪽"
+    },
+    "ranged_up": {
+      "row": 19,
+      "frames": 9,
+      "fps": 14,
+      "loop": false,
+      "label": "원거리 기술 · 위"
+    },
+    "hurt_down": {
+      "row": 20,
+      "frames": 6,
+      "fps": 16,
+      "loop": false,
+      "label": "피격 · 아래"
+    },
+    "hurt_left": {
+      "row": 21,
+      "frames": 6,
+      "fps": 16,
+      "loop": false,
+      "label": "피격 · 왼쪽"
+    },
+    "hurt_right": {
+      "row": 22,
+      "frames": 6,
+      "fps": 16,
+      "loop": false,
+      "label": "피격 · 오른쪽"
+    },
+    "hurt_up": {
+      "row": 23,
+      "frames": 6,
+      "fps": 16,
+      "loop": false,
+      "label": "피격 · 위"
+    },
+    "faint_left": {
+      "row": 24,
+      "frames": 9,
+      "fps": 8,
+      "loop": false,
+      "label": "기절 (패배) · 왼쪽",
+      "loop_from": 7
+    },
+    "faint_right": {
+      "row": 25,
+      "frames": 9,
+      "fps": 8,
+      "loop": false,
+      "label": "기절 (패배) · 오른쪽",
+      "loop_from": 7
+    },
+    "absorb_left": {
+      "row": 26,
+      "frames": 10,
+      "fps": 12,
+      "loop": false,
+      "label": "흡수 · 왼쪽"
+    },
+    "absorb_right": {
+      "row": 27,
+      "frames": 10,
+      "fps": 12,
+      "loop": false,
+      "label": "흡수 · 오른쪽"
+    },
+    "emote_left": {
+      "row": 28,
+      "frames": 2,
+      "fps": 1,
+      "loop": false,
+      "label": "감정 표현 (대화) · 왼쪽"
+    },
+    "emote_right": {
+      "row": 29,
+      "frames": 2,
+      "fps": 1,
+      "loop": false,
+      "label": "감정 표현 (대화) · 오른쪽"
+    }
+  }
+}

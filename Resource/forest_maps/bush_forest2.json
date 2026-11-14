@@ -1,0 +1,50 @@
+{
+  "image": "bush_forest2.png",
+  "cell_w": 80,
+  "cell_h": 80,
+  "columns": 8,
+  "rows_total": 6,
+  "note": "수풀 한 칸은 맵 격자 64x64. 그림 칸(80x80)의 아래 가운데(40, 74)를 격자 칸의 아래 가운데에 맞춰 그림. row 0이 맨 위.",
+  "anchor": [
+    40,
+    74
+  ],
+  "rows": {
+    "idle_0": {
+      "row": 0,
+      "frames": 6,
+      "fps": 6,
+      "loop": true
+    },
+    "rustle_0": {
+      "row": 1,
+      "frames": 8,
+      "fps": 14,
+      "loop": false
+    },
+    "encounter_0": {
+      "row": 2,
+      "frames": 8,
+      "fps": 14,
+      "loop": true
+    },
+    "idle_1": {
+      "row": 3,
+      "frames": 6,
+      "fps": 6,
+      "loop": true
+    },
+    "rustle_1": {
+      "row": 4,
+      "frames": 8,
+      "fps": 14,
+      "loop": false
+    },
+    "encounter_1": {
+      "row": 5,
+      "frames": 8,
+      "fps": 14,
+      "loop": true
+    }
+  }
+}

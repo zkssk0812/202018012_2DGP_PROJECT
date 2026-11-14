@@ -1,0 +1,21 @@
+{
+ "image": "fruit.png",
+ "cell_w": 48,
+ "cell_h": 48,
+ "rows_total": 2,
+ "rows": {
+  "ripe": {
+   "row": 0,
+   "frames": 6,
+   "fps": 6,
+   "loop": true
+  },
+  "empty": {
+   "row": 1,
+   "frames": 1,
+   "fps": 1,
+   "loop": true
+  }
+ },
+ "note": "열매 위치(json의 fruits)에 칸 가운데를 맞춰 그림. 먹으면 empty, 60초 뒤 ripe로"
+}

@@ -1,0 +1,178 @@
+{
+  "image": "dew_corrupt2_sheet.png",
+  "cell_w": 320,
+  "cell_h": 272,
+  "columns": 10,
+  "rows_total": 22,
+  "note": "row 0이 이미지 맨 위. pico2d: left = frame*cell_w, bottom = (rows_total-1-row)*cell_h",
+  "rows": {
+    "idle_down": {
+      "row": 0,
+      "frames": 8,
+      "fps": 8,
+      "loop": true,
+      "label": "대기 · 아래"
+    },
+    "idle_left": {
+      "row": 1,
+      "frames": 8,
+      "fps": 8,
+      "loop": true,
+      "label": "대기 · 왼쪽"
+    },
+    "idle_right": {
+      "row": 2,
+      "frames": 8,
+      "fps": 8,
+      "loop": true,
+      "label": "대기 · 오른쪽"
+    },
+    "idle_up": {
+      "row": 3,
+      "frames": 8,
+      "fps": 8,
+      "loop": true,
+      "label": "대기 · 위"
+    },
+    "move_down": {
+      "row": 4,
+      "frames": 8,
+      "fps": 10,
+      "loop": true,
+      "label": "이동 · 아래"
+    },
+    "move_left": {
+      "row": 5,
+      "frames": 8,
+      "fps": 10,
+      "loop": true,
+      "label": "이동 · 왼쪽"
+    },
+    "move_right": {
+      "row": 6,
+      "frames": 8,
+      "fps": 10,
+      "loop": true,
+      "label": "이동 · 오른쪽"
+    },
+    "move_up": {
+      "row": 7,
+      "frames": 8,
+      "fps": 10,
+      "loop": true,
+      "label": "이동 · 위"
+    },
+    "dodge_down": {
+      "row": 8,
+      "frames": 6,
+      "fps": 14,
+      "loop": false,
+      "label": "회피 · 아래",
+      "hold_last": true
+    },
+    "dodge_left": {
+      "row": 9,
+      "frames": 6,
+      "fps": 14,
+      "loop": false,
+      "label": "회피 · 왼쪽",
+      "hold_last": true
+    },
+    "dodge_right": {
+      "row": 10,
+      "frames": 6,
+      "fps": 14,
+      "loop": false,
+      "label": "회피 · 오른쪽",
+      "hold_last": true
+    },
+    "dodge_up": {
+      "row": 11,
+      "frames": 6,
+      "fps": 14,
+      "loop": false,
+      "label": "회피 · 위",
+      "hold_last": true
+    },
+    "attack_down": {
+      "row": 12,
+      "frames": 8,
+      "fps": 12,
+      "loop": false,
+      "label": "공격 · 아래",
+      "hold_last": true
+    },
+    "attack_left": {
+      "row": 13,
+      "frames": 8,
+      "fps": 12,
+      "loop": false,
+      "label": "공격 · 왼쪽",
+      "hold_last": true
+    },
+    "attack_right": {
+      "row": 14,
+      "frames": 8,
+      "fps": 12,
+      "loop": false,
+      "label": "공격 · 오른쪽",
+      "hold_last": true
+    },
+    "attack_up": {
+      "row": 15,
+      "frames": 8,
+      "fps": 12,
+      "loop": false,
+      "label": "공격 · 위",
+      "hold_last": true
+    },
+    "faint_left": {
+      "row": 16,
+      "frames": 8,
+      "fps": 10,
+      "loop": false,
+      "label": "쓰러짐 · 왼쪽",
+      "hold_last": true
+    },
+    "faint_right": {
+      "row": 17,
+      "frames": 8,
+      "fps": 10,
+      "loop": false,
+      "label": "쓰러짐 · 오른쪽",
+      "hold_last": true
+    },
+    "essence_out_left": {
+      "row": 18,
+      "frames": 10,
+      "fps": 8,
+      "loop": false,
+      "label": "기운 빠짐 · 왼쪽",
+      "hold_last": true
+    },
+    "essence_out_right": {
+      "row": 19,
+      "frames": 10,
+      "fps": 8,
+      "loop": false,
+      "label": "기운 빠짐 · 오른쪽",
+      "hold_last": true
+    },
+    "purify_left": {
+      "row": 20,
+      "frames": 10,
+      "fps": 10,
+      "loop": false,
+      "label": "원래대로 · 왼쪽",
+      "hold_last": true
+    },
+    "purify_right": {
+      "row": 21,
+      "frames": 10,
+      "fps": 10,
+      "loop": false,
+      "label": "원래대로 · 오른쪽",
+      "hold_last": true
+    }
+  }
+}

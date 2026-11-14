@@ -1,0 +1,385 @@
+{
+  "image": "effects_player.png",
+  "sheet_w": 3584,
+  "sheet_h": 3104,
+  "note": "한 줄 = 이펙트 하나 (칸 크기가 이펙트마다 다름). y는 이미지 맨 위 기준. pico2d: left = x + frame*cell_w, bottom = sheet_h - y - cell_h. 모두 오른쪽을 향해 그려져 있으니 각도로 회전해서 사용. origin = 칸 왼쪽 위 기준 시전자/중심 위치(y 아래로).",
+  "effects": {
+    "scratch": {
+      "x": 0,
+      "y": 0,
+      "label": "할퀴기",
+      "use": "근접 · 앞쪽 부채꼴",
+      "cell_w": 160,
+      "cell_h": 160,
+      "frames": 7,
+      "fps": 16,
+      "loop": false,
+      "origin": [
+        24,
+        80
+      ]
+    },
+    "thorn": {
+      "x": 0,
+      "y": 160,
+      "label": "가시찌르기",
+      "use": "근접 지속 · 앞쪽 부채꼴, 맞으면 dot_tick",
+      "cell_w": 160,
+      "cell_h": 160,
+      "frames": 7,
+      "fps": 16,
+      "loop": false,
+      "origin": [
+        24,
+        80
+      ]
+    },
+    "dew_shot": {
+      "x": 0,
+      "y": 320,
+      "label": "이슬탄",
+      "use": "원거리 · 투사체",
+      "cell_w": 48,
+      "cell_h": 48,
+      "frames": 4,
+      "fps": 12,
+      "loop": true,
+      "origin": [
+        24,
+        24
+      ]
+    },
+    "dew_hit": {
+      "x": 0,
+      "y": 368,
+      "label": "이슬탄 명중",
+      "use": "투사체가 닿은 자리",
+      "cell_w": 96,
+      "cell_h": 96,
+      "frames": 6,
+      "fps": 16,
+      "loop": false,
+      "origin": [
+        48,
+        48
+      ]
+    },
+    "water_shield": {
+      "x": 0,
+      "y": 464,
+      "label": "물방울막",
+      "use": "방어 · 0~2 등장, 3~7 반복 (loop_from 3)",
+      "cell_w": 160,
+      "cell_h": 160,
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "origin": [
+        80,
+        80
+      ],
+      "loop_from": 3
+    },
+    "dash_claw": {
+      "x": 0,
+      "y": 624,
+      "label": "돌진 할퀴기",
+      "use": "근접 강화 · 캡슐 돌진",
+      "cell_w": 320,
+      "cell_h": 128,
+      "frames": 8,
+      "fps": 16,
+      "loop": false,
+      "origin": [
+        32,
+        64
+      ]
+    },
+    "shadow_mist": {
+      "x": 0,
+      "y": 752,
+      "label": "그림자 안개",
+      "use": "근접 지속 강화 · 자기 중심 원",
+      "cell_w": 192,
+      "cell_h": 192,
+      "frames": 8,
+      "fps": 10,
+      "loop": true,
+      "origin": [
+        96,
+        96
+      ]
+    },
+    "hard_fur": {
+      "x": 0,
+      "y": 944,
+      "label": "단단한 털",
+      "use": "방어 강화 · 0~2 등장, 3~7 반복 (loop_from 3)",
+      "cell_w": 160,
+      "cell_h": 160,
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "origin": [
+        80,
+        80
+      ],
+      "loop_from": 3
+    },
+    "light_beam": {
+      "x": 0,
+      "y": 1104,
+      "label": "빛줄기",
+      "use": "원거리 강화 · 직선 빔",
+      "cell_w": 384,
+      "cell_h": 80,
+      "frames": 8,
+      "fps": 14,
+      "loop": false,
+      "origin": [
+        16,
+        40
+      ]
+    },
+    "poison_shot": {
+      "x": 0,
+      "y": 1184,
+      "label": "독가루탄",
+      "use": "원거리 지속 강화 · 투사체",
+      "cell_w": 48,
+      "cell_h": 48,
+      "frames": 4,
+      "fps": 12,
+      "loop": true,
+      "origin": [
+        24,
+        24
+      ]
+    },
+    "poison_burst": {
+      "x": 0,
+      "y": 1232,
+      "label": "독가루탄 폭발",
+      "use": "터진 자리 범위, 맞으면 dot_tick",
+      "cell_w": 192,
+      "cell_h": 192,
+      "frames": 8,
+      "fps": 10,
+      "loop": false,
+      "origin": [
+        96,
+        96
+      ]
+    },
+    "wind_shot": {
+      "x": 0,
+      "y": 1424,
+      "label": "바람탄",
+      "use": "실프 · 원거리 투사체 (세 갈래 바람도 사용)",
+      "cell_w": 56,
+      "cell_h": 56,
+      "frames": 4,
+      "fps": 14,
+      "loop": true,
+      "origin": [
+        28,
+        28
+      ]
+    },
+    "wind_hit": {
+      "x": 0,
+      "y": 1480,
+      "label": "바람 명중",
+      "use": "바람탄 · 독바람탄 · 세 갈래 바람 명중",
+      "cell_w": 96,
+      "cell_h": 96,
+      "frames": 6,
+      "fps": 16,
+      "loop": false,
+      "origin": [
+        48,
+        48
+      ]
+    },
+    "venom_wind": {
+      "x": 0,
+      "y": 1576,
+      "label": "독바람탄",
+      "use": "실프 · 원거리 지속 투사체",
+      "cell_w": 56,
+      "cell_h": 56,
+      "frames": 4,
+      "fps": 14,
+      "loop": true,
+      "origin": [
+        28,
+        28
+      ]
+    },
+    "triple_gust": {
+      "x": 0,
+      "y": 1632,
+      "label": "세 갈래 바람",
+      "use": "실프 특별 · 발사 순간 (투사체는 wind_shot ×3)",
+      "cell_w": 160,
+      "cell_h": 160,
+      "frames": 6,
+      "fps": 16,
+      "loop": false,
+      "origin": [
+        24,
+        80
+      ]
+    },
+    "wind_blade": {
+      "x": 0,
+      "y": 1792,
+      "label": "바람 칼날",
+      "use": "실프 특별 · 관통 캡슐",
+      "cell_w": 448,
+      "cell_h": 96,
+      "frames": 8,
+      "fps": 16,
+      "loop": false,
+      "origin": [
+        16,
+        48
+      ]
+    },
+    "rock_charge": {
+      "x": 0,
+      "y": 1888,
+      "label": "돌진 박치기",
+      "use": "노움 · 캡슐 돌진",
+      "cell_w": 320,
+      "cell_h": 128,
+      "frames": 8,
+      "fps": 16,
+      "loop": false,
+      "origin": [
+        32,
+        64
+      ]
+    },
+    "dust_whirl": {
+      "x": 0,
+      "y": 2016,
+      "label": "흙먼지 회오리",
+      "use": "노움 · 자기 중심 원 지속",
+      "cell_w": 192,
+      "cell_h": 192,
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "origin": [
+        96,
+        96
+      ]
+    },
+    "rapid_punch": {
+      "x": 0,
+      "y": 2208,
+      "label": "연속 주먹",
+      "use": "노움 특별 · 좁은 부채꼴, 3번 연속 재생",
+      "cell_w": 144,
+      "cell_h": 144,
+      "frames": 5,
+      "fps": 20,
+      "loop": false,
+      "origin": [
+        24,
+        72
+      ]
+    },
+    "slam_warn": {
+      "x": 0,
+      "y": 2352,
+      "label": "내려찍기 예고",
+      "use": "노움 특별 · 착지 지점에 0.5초",
+      "cell_w": 192,
+      "cell_h": 192,
+      "frames": 8,
+      "fps": 16,
+      "loop": false,
+      "origin": [
+        96,
+        96
+      ]
+    },
+    "slam_impact": {
+      "x": 0,
+      "y": 2544,
+      "label": "내려찍기 충격",
+      "use": "노움 특별 · 착지 지점 원",
+      "cell_w": 224,
+      "cell_h": 224,
+      "frames": 8,
+      "fps": 16,
+      "loop": false,
+      "origin": [
+        112,
+        112
+      ]
+    },
+    "hit_spark": {
+      "x": 0,
+      "y": 2768,
+      "label": "타격",
+      "use": "공통 · 맞은 자리",
+      "cell_w": 96,
+      "cell_h": 96,
+      "frames": 6,
+      "fps": 20,
+      "loop": false,
+      "origin": [
+        48,
+        48
+      ]
+    },
+    "dot_tick": {
+      "x": 0,
+      "y": 2864,
+      "label": "지속 피해",
+      "use": "공통 · 지속 피해 중 머리 위",
+      "cell_w": 64,
+      "cell_h": 80,
+      "frames": 8,
+      "fps": 10,
+      "loop": true,
+      "origin": [
+        32,
+        80
+      ]
+    },
+    "warn_glint": {
+      "x": 0,
+      "y": 2944,
+      "label": "특별 기술 예고",
+      "use": "공통 · 특별 기술 0.5초 예고",
+      "cell_w": 96,
+      "cell_h": 96,
+      "frames": 8,
+      "fps": 16,
+      "loop": false,
+      "origin": [
+        48,
+        48
+      ]
+    },
+    "charge_orb": {
+      "x": 0,
+      "y": 3040,
+      "label": "기운 모으기",
+      "use": "원거리 기술 준비 · 입 앞",
+      "cell_w": 64,
+      "cell_h": 64,
+      "frames": 6,
+      "fps": 12,
+      "loop": false,
+      "origin": [
+        32,
+        32
+      ]
+    }
+  }
+}

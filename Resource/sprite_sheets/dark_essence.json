@@ -1,0 +1,9 @@
+{
+  "image": "dark_essence.png",
+  "label": "실제 타락한 기운 (빠져나온 뒤 모아에게 날아감)",
+  "cell_w": 96,
+  "cell_h": 96,
+  "frames": 8,
+  "fps": 10,
+  "loop": true
+}

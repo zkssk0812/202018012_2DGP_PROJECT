@@ -1,0 +1,25 @@
+{
+ "name": "battle_forest1",
+ "size": [
+  3840,
+  2160
+ ],
+ "background": "battle_forest1_bg.png",
+ "foreground": "battle_forest1_fg.png",
+ "note": "좌표는 pico2d 기준(왼쪽 아래가 0,0, y는 위로). 사각형은 [left, bottom, right, top]. 그리는 순서: background → 수풀·열매·캐릭터(y가 큰 것부터) → foreground(나무 윗부분).",
+ "arena": [
+  120,
+  100,
+  3720,
+  1970
+ ],
+ "player_start": [
+  1560,
+  1080
+ ],
+ "enemy_start": [
+  2280,
+  1080
+ ],
+ "note_battle": "화면(1280x720)보다 큰 맵이라 숲 맵처럼 카메라가 모아를 따라감. arena 밖으로는 못 나가게 막음"
+}
