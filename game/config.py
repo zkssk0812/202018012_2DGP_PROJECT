@@ -17,7 +17,7 @@ MAX_FRAME_TIME = 0.05         # 프레임이 길게 끊겨도 한 번에 이만�
 
 # ── 모아 ─────────────────────────────────────────────
 MOA_SPEED = 300               # 이동 속도
-MOA_BODY_RADIUS = 40          # 몸 원 반지름 (psd 5.3)
+MOA_BODY_RADIUS = 28          # 몸 원 반지름 (psd 5.3)
 MOA_SPRITE_OFFSET_Y = 20      # 몸 중심에서 그림 중심까지 (그림이 몸보다 위로 올라가 보이게)
 
 # ── 회피 (Space) ── psd 4.4: 대시, 0.3초 무적, 쿨다운 1.5초
@@ -38,10 +38,10 @@ MOA_LEVEL = 1
 # ── 훈련용 가시몽 (1주차 임시 적, 2주차에 배틀 AI 로 교체) ──
 DUMMY_BASE_STATS = (40, 10, 8)
 DUMMY_LEVEL = 3
-DUMMY_BODY_RADIUS = 40
+DUMMY_BODY_RADIUS = 30
 DUMMY_SPEED = 160
 DUMMY_SPRITE_OFFSET_Y = 20
-DUMMY_ATTACK_RANGE = 150      # 몸 중심 사이 거리가 이보다 가까우면 할퀴기
+DUMMY_ATTACK_RANGE = 140      # 몸 중심 사이 거리가 이보다 가까우면 할퀴기 (할퀴기 닿는 거리 120 + 모아 몸 28 안쪽)
 DUMMY_ATTACK_GAP = 0.6        # 기술 사이 짧은 틈
 
 # ── 기술: 할퀴기 (psd 5.2, 5.3) ──
