@@ -5,7 +5,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from stats import stats_at, damage
+from stats import stats_at, damage, exp_to_next, exp_reward
 
 
 class StatsTest(unittest.TestCase):
@@ -18,6 +18,10 @@ class StatsTest(unittest.TestCase):
         self.assertEqual(stats_at((40, 10, 8), 7), (64, 16, 13))       # 가시몽 Lv7
         self.assertEqual(stats_at((80, 13, 11), 9), (144, 23, 20))     # 실프 Lv9
         self.assertEqual(stats_at((90, 16, 14), 14), (207, 37, 32))    # 노움 Lv14
+
+    def test_exp(self):
+        self.assertEqual(exp_to_next(1), 30)           # 임시 공식: 20 + 10 × 레벨
+        self.assertEqual(exp_reward(2), 20)            # 임시 공식: 10 + 5 × 정령 레벨
 
     def test_damage(self):
         self.assertEqual(damage(40, 12, 10), 12)       # 가시몽 Lv3 할퀴기 → 모아 Lv1

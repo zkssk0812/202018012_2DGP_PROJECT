@@ -34,6 +34,15 @@ FAINT_RESTART_TIME = 2.0      # 쓰러진 뒤 다시 시작하기까지
 # ── 능력치 ── psd 4.7: HP / 공격 / 방어
 MOA_BASE_STATS = (45, 12, 10)
 MOA_LEVEL = 1
+MOA_MAX_LEVEL = 15
+
+# ── 경험치 (임시값, psd 에 수치가 없어 정함) ──
+# 다음 레벨까지 필요한 경험치 = EXP_BASE + EXP_PER_LEVEL × 지금 레벨
+# 정령을 쓰러뜨리면 얻는 경험치 = EXP_REWARD_BASE + EXP_REWARD_PER_LEVEL × 정령 레벨
+EXP_BASE = 20
+EXP_PER_LEVEL = 10
+EXP_REWARD_BASE = 10
+EXP_REWARD_PER_LEVEL = 5
 
 # ── 기술 칸 ── psd 4.2: Q·W 시작, E Lv10, R Lv15
 SLOT_KEYS = ('Q', 'W', 'E', 'R')

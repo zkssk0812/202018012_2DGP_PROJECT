@@ -13,6 +13,7 @@ DOT_TICK = 1.0          # 지속 피해는 1초마다
 
 class Fighter:
     def init_fighter(self, base_stats, level, fx_owner):
+        self.base_stats = base_stats
         self.level = level
         self.max_hp, self.attack, self.defense = stats_at(base_stats, level)
         self.hp = self.max_hp

@@ -14,6 +14,7 @@ from battle_map import BattleMap
 from camera import Camera
 from collision import separate
 from config import FAINT_RESTART_TIME, BATTLE_MAP
+from stats import exp_reward
 from moa import Moa
 from training_thorn import TrainingThorn
 
@@ -23,6 +24,7 @@ camera = None
 moa = None
 enemy = None
 faint_time = 0.0
+rewarded = False      # 지금 기절한 상대의 경험치를 이미 받았는지
 
 
 def init():
@@ -33,7 +35,7 @@ def init():
 
 
 def start():
-    global moa, enemy, faint_time
+    global moa, enemy, faint_time, rewarded
     combat.clear()
     moa = Moa(*battle_map.player_start, battle_map)
     enemy = TrainingThorn(*battle_map.enemy_start, battle_map, moa)
@@ -41,6 +43,7 @@ def start():
     for f in (moa, enemy):
         f.on_dot_tick = combat.dot_tick_fx
     faint_time = 0.0
+    rewarded = False
     camera.follow(moa.x, moa.y)
 
 
@@ -80,8 +83,19 @@ def update(dt):
         enemy.x, enemy.y = battle_map.clamp(enemy.x, enemy.y, enemy.radius)
 
     combat.update(dt, (moa, enemy))
+    update_reward()
     update_faint(dt)
     camera.follow(moa.x, moa.y)
+
+
+def update_reward():
+    """상대가 기절하면 경험치를 한 번 준다. (흡수가 생기면 흡수가 끝날 때 주도록 옮긴다)"""
+    global rewarded
+    if enemy.is_down and not rewarded:
+        rewarded = True
+        moa.gain_exp(exp_reward(enemy.level))
+    elif not enemy.is_down:
+        rewarded = False
 
 
 def update_faint(dt):

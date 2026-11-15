@@ -19,10 +19,11 @@ import skills
 from config import (MOA_SPEED, MOA_BODY_RADIUS, MOA_SPRITE_OFFSET_Y,
                     DODGE_TIME, DODGE_SPEED, DODGE_COOLDOWN,
                     HURT_TIME, KNOCKBACK_SPEED, HIT_INVINCIBLE,
-                    MOA_BASE_STATS, MOA_LEVEL, MOA_SKILL_WINDUP,
+                    MOA_BASE_STATS, MOA_LEVEL, MOA_MAX_LEVEL, MOA_SKILL_WINDUP,
                     SLOT_KEYS, SLOT_UNLOCK_LEVELS, MOA_START_SKILLS)
 from fighter import Fighter
 from sprite import SheetSprite
+from stats import stats_at, exp_to_next
 
 # 방향키 → (dx, dy, 그림 방향)
 DIR_KEYS = {
@@ -73,6 +74,8 @@ class Moa(Fighter):
         self.knock_vx = self.knock_vy = 0.0
 
         self.init_fighter(MOA_BASE_STATS, MOA_LEVEL, 'player')
+        self.exp = 0
+        self.level_up_time = 0.0       # 레벨이 오른 뒤 화면에 표시할 남은 시간
         self.slots = [Slot(k, lv, s) for k, lv, s in zip(SLOT_KEYS, SLOT_UNLOCK_LEVELS, MOA_START_SKILLS)]
         self.casting_slot = None
         self.cast_info = None
@@ -129,6 +132,33 @@ class Moa(Fighter):
         if self.state in ('idle', 'move') and self.slot_ready(i):
             self.casting_slot = i
             self.cast_start()
+
+    # ── 경험치 · 레벨 ────────────────────────────────
+    @property
+    def exp_needed(self):
+        return exp_to_next(self.level)
+
+    def gain_exp(self, amount):
+        """경험치를 얻고, 넘치면 레벨을 올린다. 최대 레벨이면 쌓지 않는다."""
+        if self.level >= MOA_MAX_LEVEL:
+            return
+        self.exp += amount
+        while self.level < MOA_MAX_LEVEL and self.exp >= self.exp_needed:
+            self.exp -= self.exp_needed
+            self.level_up()
+        if self.level >= MOA_MAX_LEVEL:
+            self.exp = 0
+
+    def level_up(self):
+        """능력치를 다시 계산하고, 늘어난 최대 HP 만큼 HP 도 채운다. 칸은 레벨을 보고 열린다."""
+        old_max = self.max_hp
+        self.level += 1
+        self.max_hp, self.attack, self.defense = stats_at(self.base_stats, self.level)
+        self.hp = min(self.max_hp, self.hp + self.max_hp - old_max)
+        for s in self.slots:
+            if self.level >= s.unlock_level:
+                s.forced = False
+        self.level_up_time = 1.5
 
     # ── 맞기 (Fighter) ───────────────────────────────
     def react_to_hit(self, from_x, from_y):
@@ -225,6 +255,7 @@ class Moa(Fighter):
     def update(self, dt):
         self.state_time += dt
         self.dodge_cooldown = max(0.0, self.dodge_cooldown - dt)
+        self.level_up_time = max(0.0, self.level_up_time - dt)
         self.invincible = max(0.0, self.invincible - dt)
         for s in self.slots:
             s.cooldown = max(0.0, s.cooldown - dt)

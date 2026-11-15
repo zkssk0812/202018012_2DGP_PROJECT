@@ -3,7 +3,7 @@ from pico2d import draw_rectangle
 
 import skills
 import ui
-from config import DODGE_COOLDOWN, SCREEN_W
+from config import DODGE_COOLDOWN, SCREEN_W, MOA_MAX_LEVEL
 
 SLOT_W, SLOT_H, SLOT_GAP = 96, 56, 10
 
@@ -16,12 +16,25 @@ def bar(x, y, w, h, ratio, color, back=(40, 40, 40)):
 
 
 def draw_player(moa):
-    bar(20, 20, 260, 18, moa.hp / moa.max_hp, (90, 220, 120))
-    ui.text(26, 29, f'{moa.hp} / {moa.max_hp}', 13)
+    # 왼쪽 아래: 레벨 · 회피 쿨다운 / HP / 경험치
+    ui.text(20, 72, f'Lv {moa.level}', 20, (255, 230, 120))
     ready = 1 - moa.dodge_cooldown / DODGE_COOLDOWN
-    bar(20, 44, 120, 8, ready, (120, 180, 255) if ready >= 1 else (90, 110, 150))
+    bar(84, 66, 120, 8, ready, (120, 180, 255) if ready >= 1 else (90, 110, 150))
     if moa.guard_time > 0:
-        ui.text(150, 48, f'방어 {int(moa.guard_rate * 100)}%', 13, (150, 220, 255))
+        ui.text(214, 70, f'방어 {int(moa.guard_rate * 100)}%', 13, (150, 220, 255))
+
+    bar(20, 34, 260, 18, moa.hp / moa.max_hp, (90, 220, 120))
+    ui.text(26, 43, f'{moa.hp} / {moa.max_hp}', 13)
+
+    if moa.level >= MOA_MAX_LEVEL:
+        bar(20, 20, 260, 8, 1, (230, 200, 80))
+        ui.text(288, 24, 'MAX', 12, (230, 200, 80))
+    else:
+        bar(20, 20, 260, 8, moa.exp / moa.exp_needed, (230, 200, 80))
+        ui.text(288, 24, f'EXP {moa.exp} / {moa.exp_needed}', 12, (230, 200, 80))
+
+    if moa.level_up_time > 0:
+        ui.text(20, 100, 'LEVEL UP!', 22, (255, 240, 120))
     draw_slots(moa)
 
 
@@ -51,5 +64,6 @@ def draw_slots(moa):
 def draw_enemy(enemy, camera):
     sx, sy = camera.to_screen(enemy.x, enemy.y)
     bar(sx - 40, sy + 70, 80, 8, enemy.hp / enemy.max_hp, (230, 80, 80))
+    ui.text(sx - 82, sy + 74, f'Lv{enemy.level}', 14, (255, 230, 120))
     if enemy.state == 'faint':
         ui.text(sx - 16, sy + 88, '기절', 14, (255, 230, 120))
