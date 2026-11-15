@@ -3,7 +3,7 @@
 1주차: 모아 이동·회피, 훈련용 가시몽의 할퀴기에 맞는 피격 판정까지.
 """
 from pico2d import get_events
-from sdl2 import SDL_QUIT, SDL_KEYDOWN, SDLK_ESCAPE, SDLK_t
+from sdl2 import SDL_QUIT, SDL_KEYDOWN, SDLK_ESCAPE, SDLK_t, SDLK_u
 
 import admin
 import debug_draw
@@ -59,6 +59,8 @@ def handle_events():
             game_framework.quit()
         elif e.type == SDL_KEYDOWN and e.key == SDLK_t:
             admin.toggle()
+        elif e.type == SDL_KEYDOWN and e.key == SDLK_u:
+            admin.toggle_hurtbox()
         else:
             moa.handle_event(e)
 
@@ -122,14 +124,16 @@ def draw():
     if admin.enabled:
         draw_debug()
         admin.draw_label()
+    if admin.show_hurtbox:
+        debug_draw.hurtbox(moa, camera)
+        debug_draw.hurtbox(enemy, camera)
 
 
 def draw_debug():
     debug_draw.arena(battle_map.arena, camera)
-    debug_draw.body(moa, camera, (255, 255, 255) if moa.is_invincible else debug_draw.BODY_COLOR)
-    debug_draw.body(enemy, camera)
     for atk in attacks:
-        debug_draw.shape(atk.shape, camera, debug_draw.HIT_COLOR if atk.is_active else (255, 160, 60))
+        color = debug_draw.HIT_COLOR if atk.is_active else debug_draw.HIT_WAIT_COLOR
+        debug_draw.shape(atk.shape, camera, color)
 
 
 def debug_state():

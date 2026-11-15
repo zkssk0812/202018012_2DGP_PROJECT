@@ -5,14 +5,26 @@ from pico2d import draw_circle, draw_line, draw_rectangle
 
 from collision import Circle, Sector, Capsule
 
-BODY_COLOR = (80, 255, 120)
-HIT_COLOR = (255, 70, 70)
+HURTBOX_COLOR = (255, 30, 30)          # 피격 범위 (U)
+HURTBOX_OFF_COLOR = (150, 150, 150)    # 무적이라 지금은 맞지 않는 피격 범위
+HIT_COLOR = (255, 150, 0)              # 공격 판정이 켜져 있을 때
+HIT_WAIT_COLOR = (255, 230, 120)       # 공격 판정이 켜지기 전 (예고)
 ARENA_COLOR = (255, 255, 0)
 
 
-def body(obj, camera, color=BODY_COLOR):
+def body(obj, camera, color):
     sx, sy = camera.to_screen(obj.x, obj.y)
     draw_circle(int(sx), int(sy), int(obj.radius), *color)
+
+
+def hurtbox(obj, camera):
+    """피격 범위: 몸 원을 붉은색 두 줄로 그리고 가운데에 점을 찍는다. 무적이면 회색."""
+    color = HURTBOX_OFF_COLOR if obj.is_invincible else HURTBOX_COLOR
+    sx, sy = camera.to_screen(obj.x, obj.y)
+    r = int(obj.radius)
+    draw_circle(int(sx), int(sy), r, *color)
+    draw_circle(int(sx), int(sy), r - 1, *color)
+    draw_circle(int(sx), int(sy), 3, *color, filled=True)
 
 
 def arena(rect, camera, color=ARENA_COLOR):
