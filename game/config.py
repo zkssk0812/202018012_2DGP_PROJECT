@@ -53,6 +53,7 @@ MOA_SKILL_WINDUP = 0.1        # 모아 기술: 누르고 판정이 켜지기까�
 # ── 전투 맵과 상대 ──
 BATTLE_MAP = 'battle_tutorial'           # 오프닝 빈터 전투 맵
 DUMMY_SHEET = 'tori_corrupt_sheet'       # 타락한 토리 (가시몽 색 변경 개체, psd 6.2)
+DUMMY_PURE_SHEET = 'tori_sheet'          # 흡수 뒤 원래 색으로 돌아온 토리
 
 # ── 훈련용 상대 (임시 적, 배틀 AI 로 교체 예정) ── 토리는 가시몽 능력치·그림 크기 그대로
 DUMMY_BASE_STATS = (40, 10, 8)
@@ -67,7 +68,12 @@ DUMMY_ATTACK_GAP = 0.6        # 기술 사이 짧은 틈
 ENEMY_HURT_TIME = 0.15
 ENEMY_KNOCKBACK_SPEED = 300
 DUMMY_SKILL_WINDUP = 0.3      # 적 기술: 동작 시작 → 판정 (보고 피할 수 있게)
-DUMMY_REVIVE_TIME = 3.0       # 임시: F 흡수가 생기기 전까지 기절하면 이 시간 뒤 다시 일어남
+DUMMY_RESPAWN_TIME = 2.5      # 임시: 정화된 뒤 이 시간이 지나면 새 상대가 나옴 (나중엔 전투 맵을 빠져나감)
+
+# ── 흡수 (F) ── psd 4.1
+ABSORB_RADIUS = 80            # 검은 기운 흡수 범위 원 반지름 (psd 5.3)
+ABSORB_TIME = 0.85            # 모아의 흡수 동작 시간 = 기운이 날아오는 시간
+ESSENCE_FLOAT_Y = 40          # 검은 기운이 적 몸 위로 떠 있는 높이
 
 # ── 기술 이펙트 ──
 FX_SKIP = 0.06                # 판정이 켜질 때 이펙트의 흐린 첫 프레임을 건너뜀

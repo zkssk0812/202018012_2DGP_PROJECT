@@ -1,9 +1,15 @@
 """전투 모드: 전투 맵 위에서 1대1 전투를 한다.
 
-모아: 이동·회피·QWER 기술. 상대: 훈련용 정령 (지금은 타락한 토리, 배틀 AI 정령으로 바꾸기 전까지).
+모아: 이동·회피·QWER 기술·F 흡수. 상대: 훈련용 정령 (지금은 타락한 토리, 배틀 AI 정령으로 바꾸기 전까지).
+
+흡수 흐름 (psd 4.1):
+    상대 HP 0 → 기절 → 그 자리에 검은 기운 + 흡수 범위 원
+    → 모아 몸이 범위에 닿으면 F 안내 → F → 기운이 모아에게 날아옴, 상대는 기운이 빠지고 원래 색으로
+    → 흡수가 끝나면 경험치
+    → (임시) 잠시 뒤 새 상대가 나옴. 나중엔 여기서 전투 맵을 빠져나가 숲으로 돌아간다.
 """
 from pico2d import get_events
-from sdl2 import SDL_QUIT, SDL_KEYDOWN, SDLK_ESCAPE, SDLK_t, SDLK_u, SDLK_g, SDLK_k
+from sdl2 import SDL_QUIT, SDL_KEYDOWN, SDLK_ESCAPE, SDLK_t, SDLK_u, SDLK_g, SDLK_k, SDLK_f
 
 import admin
 import combat
@@ -13,18 +19,19 @@ import hud
 from battle_map import BattleMap
 from camera import Camera
 from collision import separate
-from config import FAINT_RESTART_TIME, BATTLE_MAP
-from stats import exp_reward
+from config import FAINT_RESTART_TIME, BATTLE_MAP, ABSORB_TIME, DUMMY_RESPAWN_TIME
+from essence import Essence
 from moa import Moa
+from stats import exp_reward
 from training_thorn import TrainingThorn
-
 
 battle_map = None
 camera = None
 moa = None
 enemy = None
+essence = None        # 상대가 기절하면 생기는 검은 기운
 faint_time = 0.0
-rewarded = False      # 지금 기절한 상대의 경험치를 이미 받았는지
+respawn_time = 0.0
 
 
 def init():
@@ -35,16 +42,22 @@ def init():
 
 
 def start():
-    global moa, enemy, faint_time, rewarded
+    global moa, faint_time
     combat.clear()
     moa = Moa(*battle_map.player_start, battle_map)
-    enemy = TrainingThorn(*battle_map.enemy_start, battle_map, moa)
-    moa.opponent = enemy
-    for f in (moa, enemy):
-        f.on_dot_tick = combat.dot_tick_fx
+    moa.on_dot_tick = combat.dot_tick_fx
+    spawn_enemy()
     faint_time = 0.0
-    rewarded = False
     camera.follow(moa.x, moa.y)
+
+
+def spawn_enemy():
+    global enemy, essence, respawn_time
+    enemy = TrainingThorn(*battle_map.enemy_start, battle_map, moa)
+    enemy.on_dot_tick = combat.dot_tick_fx
+    moa.opponent = enemy
+    essence = None
+    respawn_time = 0.0
 
 
 def finish():
@@ -67,8 +80,24 @@ def handle_events():
             import skill_select_mode                             # 관리자: 기술 선택 창 (게임 멈춤)
             game_framework.push_mode(skill_select_mode)
             return
+        elif e.type == SDL_KEYDOWN and e.key == SDLK_f:
+            try_absorb()
         else:
             moa.handle_event(e)
+
+
+def can_absorb():
+    """F 를 누르면 흡수가 되는 상황인지 (안내 표시에도 쓴다)."""
+    return essence is not None and moa.can_absorb and essence.in_range(moa)
+
+
+def try_absorb():
+    """범위 밖이나 다른 동작 중에 F 를 누르면 아무 일도 없다."""
+    if not can_absorb():
+        return
+    moa.start_absorb(enemy)
+    essence.fly_to_target(moa, ABSORB_TIME)
+    enemy.drain()
 
 
 def update(dt):
@@ -83,19 +112,25 @@ def update(dt):
         enemy.x, enemy.y = battle_map.clamp(enemy.x, enemy.y, enemy.radius)
 
     combat.update(dt, (moa, enemy))
-    update_reward()
+    update_essence(dt)
     update_faint(dt)
     camera.follow(moa.x, moa.y)
 
 
-def update_reward():
-    """상대가 기절하면 경험치를 한 번 준다. (흡수가 생기면 흡수가 끝날 때 주도록 옮긴다)"""
-    global rewarded
-    if enemy.is_down and not rewarded:
-        rewarded = True
+def update_essence(dt):
+    global essence, respawn_time
+    if essence is None and enemy.state == 'faint':
+        essence = Essence(enemy)                  # 기절한 자리에 검은 기운
+    if essence is None:
+        return
+    was_done = essence.done
+    essence.update(dt)
+    if essence.done and not was_done:             # 흡수 완료 → 경험치
         moa.gain_exp(exp_reward(enemy.level))
-    elif not enemy.is_down:
-        rewarded = False
+    if enemy.purify_done:                         # 임시: 원래 색으로 돌아오고 잠시 뒤 새 상대
+        respawn_time += dt
+        if respawn_time >= DUMMY_RESPAWN_TIME:
+            spawn_enemy()
 
 
 def update_faint(dt):
@@ -108,16 +143,24 @@ def update_faint(dt):
         faint_time = 0.0
         combat.clear()
         moa.restart(*battle_map.player_start)
-        enemy.x, enemy.y = battle_map.enemy_start
+        if not enemy.is_down:
+            enemy.x, enemy.y = battle_map.enemy_start
 
 
 def draw():
     battle_map.draw_background(camera)
+    if essence:
+        essence.draw_ground(camera)
     for obj in sorted((moa, enemy), key=lambda o: -o.y):      # 화면 위쪽(뒤)부터
         obj.draw(camera)
+    if essence:
+        essence.draw(camera)
     combat.draw(camera)
     battle_map.draw_foreground(camera)
-    hud.draw_enemy(enemy, camera)
+    if enemy.state not in ('essence_out', 'purified'):        # 흡수가 시작되면 HP 바를 숨김
+        hud.draw_enemy(enemy, camera)
+    if can_absorb():
+        hud.draw_absorb_prompt(moa, camera)
     hud.draw_player(moa)
     if admin.enabled:
         draw_debug()
@@ -139,6 +182,6 @@ def draw_debug():
 def debug_state():
     """테스트용: 현재 상태를 짧게 돌려준다."""
     return (f'moa {moa.state} ({moa.x:.0f},{moa.y:.0f}) hp={moa.hp}/{moa.max_hp} '
-            f'slots={[(s.skill_id, round(s.cooldown, 1)) for s in moa.slots]} | '
+            f'Lv{moa.level} exp={moa.exp}/{moa.exp_needed} | '
             f'enemy {enemy.state} ({enemy.x:.0f},{enemy.y:.0f}) hp={enemy.hp}/{enemy.max_hp} '
-            f'dots={ {k: round(v[1], 1) for k, v in enemy.dots.items()} } atk={len(combat.attacks)}')
+            f'essence={essence.state if essence else None} absorb_ok={can_absorb()}')

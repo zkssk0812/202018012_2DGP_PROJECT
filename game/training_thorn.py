@@ -3,7 +3,8 @@
 다가와서 할퀴기만 한다. 배틀 AI(psd 4.6)를 가진 정령으로 바꾸기 전까지 쓴다.
     idle ──chase──▶ move ──reach──▶ attack ──attack_end──▶ idle
     idle/move/attack ──hit──▶ hurt ──recover──▶ idle     (짧게 밀려나고, 예고 중인 공격은 취소)
-    (어느 상태든) ──faint──▶ faint ──revive──▶ idle      (HP 0 → 기절, 임시로 3초 뒤 다시 일어남)
+    (어느 상태든) ──faint──▶ faint                        (HP 0 → 기절. 흡수될 때까지 그대로)
+    faint ──drain──▶ essence_out ──purify──▶ purified    (모아가 F 로 흡수 → 기운 빠짐 → 원래 색)
 할퀴기는 공격 동작이 시작될 때 상대 쪽으로 방향을 고정한다. 그래서 동작을 보고 피할 수 있다.
 """
 import math
@@ -13,7 +14,7 @@ from transitions import Machine
 import skills
 from config import (DUMMY_SHEET, DUMMY_BASE_STATS, DUMMY_LEVEL, DUMMY_BODY_RADIUS, DUMMY_SPEED,
                     DUMMY_SPRITE_OFFSET_Y, DUMMY_ATTACK_RANGE, DUMMY_ATTACK_GAP,
-                    DUMMY_SKILL_WINDUP, DUMMY_REVIVE_TIME,
+                    DUMMY_SKILL_WINDUP, DUMMY_PURE_SHEET,
                     ENEMY_HURT_TIME, ENEMY_KNOCKBACK_SPEED)
 from fighter import Fighter
 from moa import face_of
@@ -23,7 +24,7 @@ SKILL = 'scratch'
 
 
 class TrainingThorn(Fighter):
-    states = ['idle', 'move', 'attack', 'hurt', 'faint']
+    states = ['idle', 'move', 'attack', 'hurt', 'faint', 'essence_out', 'purified']
 
     def __init__(self, x, y, battle_map, target):
         self.x, self.y = x, y
@@ -39,6 +40,7 @@ class TrainingThorn(Fighter):
         self.cooldown = 1.0            # 시작하자마자 때리지 않도록
         self.attack_angle = 0.0
         self.knock_vx = self.knock_vy = 0.0
+        self.pure_sprite = None
 
         self.machine = Machine(model=self, states=TrainingThorn.states, initial='idle',
                                ignore_invalid_triggers=True, after_state_change='reset_state_time')
@@ -49,12 +51,18 @@ class TrainingThorn(Fighter):
         self.machine.add_transition('hit', ['idle', 'move', 'attack', 'hurt'], 'hurt')
         self.machine.add_transition('recover', 'hurt', 'idle')
         self.machine.add_transition('faint', ['idle', 'move', 'attack', 'hurt'], 'faint')
-        self.machine.add_transition('revive', 'faint', 'idle')
+        self.machine.add_transition('drain', 'faint', 'essence_out')
+        self.machine.add_transition('purify', 'essence_out', 'purified')
         self.on_enter_idle()
 
     @property
     def is_invincible(self):
-        return self.state == 'faint'
+        return self.state in ('faint', 'essence_out', 'purified')
+
+    @property
+    def purify_done(self):
+        """원래 색으로 완전히 돌아왔는지 (원래대로 동작까지 끝)."""
+        return self.state == 'purified' and self.sprite.done
 
     def reset_state_time(self):
         self.state_time = 0.0
@@ -110,6 +118,12 @@ class TrainingThorn(Fighter):
     def on_enter_faint(self):
         self.sprite.play('faint', self.face, restart=True)
 
+    def on_enter_essence_out(self):
+        self.sprite.play('essence_out', self.face, restart=True)
+
+    def on_enter_purified(self):
+        self.sprite.play('purify', self.face, restart=True)
+
     # ── 매 프레임 ────────────────────────────────────
     def update(self, dt):
         self.state_time += dt
@@ -156,9 +170,19 @@ class TrainingThorn(Fighter):
             self.recover()
 
     def update_faint(self, dt):
-        if self.state_time >= DUMMY_REVIVE_TIME:
-            self.hp = self.max_hp
-            self.revive()
+        pass                                  # 모아가 흡수할 때까지 기절해 있음
+
+    def update_essence_out(self, dt):
+        if self.sprite.done:
+            self.purify()
+
+    def update_purified(self, dt):
+        # 원래대로 동작이 끝나면 원래 색 그림(정화된 모습)으로 바꿔 기뻐한다
+        if self.sprite.done and self.pure_sprite is None:
+            self.pure_sprite = SheetSprite('sprite_sheets', DUMMY_PURE_SHEET)
+            self.pure_sprite.play('joy', self.face)
+        if self.pure_sprite:
+            self.pure_sprite.update(dt)
 
     def move_by(self, dx, dy):
         self.x, self.y = self.battle_map.clamp(self.x + dx, self.y + dy, self.radius)
@@ -166,4 +190,4 @@ class TrainingThorn(Fighter):
     # ── 그리기 ──────────────────────────────────────
     def draw(self, camera):
         sx, sy = camera.to_screen(self.x, self.y)
-        self.sprite.draw(sx, sy + DUMMY_SPRITE_OFFSET_Y)
+        (self.pure_sprite or self.sprite).draw(sx, sy + DUMMY_SPRITE_OFFSET_Y)

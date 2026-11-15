@@ -61,6 +61,15 @@ def draw_slots(moa):
             ui.text(x + 6, y + 18, f'Lv{slot.unlock_level}', 13, (120, 120, 120))
 
 
+def draw_absorb_prompt(moa, camera):
+    """흡수 범위 안에 들어오면 모아 머리 위에 F 안내 (psd 4.1)."""
+    sx, sy = camera.to_screen(moa.x, moa.y)
+    x, y = sx + 26, sy + 30                  # 모아 오른쪽 위 (상대의 HP 바를 가리지 않게)
+    draw_rectangle(x, y, x + 26, y + 26, 30, 20, 45, filled=True)
+    draw_rectangle(x, y, x + 26, y + 26, 200, 150, 255)
+    ui.text(x + 8, y + 13, 'F', 18, (230, 210, 255))
+
+
 def draw_enemy(enemy, camera):
     sx, sy = camera.to_screen(enemy.x, enemy.y)
     bar(sx - 40, sy + 70, 80, 8, enemy.hp / enemy.max_hp, (230, 80, 80))

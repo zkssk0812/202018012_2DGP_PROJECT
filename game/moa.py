@@ -6,6 +6,7 @@
     idle/move/cast ──dodge_start──▶ dodge ──dodge_end──▶ idle   (쿨다운이 끝났을 때만)
     idle/move ──cast_start──▶ cast ──cast_end──▶ idle           (QWER 기술, 쓰는 동안 못 움직임)
     idle/move/cast/hurt ──hit──▶ hurt ──recover──▶ idle          (넉백 뒤 0.5초 무적)
+    idle/move ──absorb_start──▶ absorb ──absorb_end──▶ idle    (F: 검은 기운 흡수, psd 4.1)
     (어느 상태든) ──faint──▶ faint                                (HP 0, 전투 모드가 다시 시작시킴)
 x, y 는 몸 원의 중심(맵 좌표)이다.
 """
@@ -20,7 +21,7 @@ from config import (MOA_SPEED, MOA_BODY_RADIUS, MOA_SPRITE_OFFSET_Y,
                     DODGE_TIME, DODGE_SPEED, DODGE_COOLDOWN,
                     HURT_TIME, KNOCKBACK_SPEED, HIT_INVINCIBLE,
                     MOA_BASE_STATS, MOA_LEVEL, MOA_MAX_LEVEL, MOA_SKILL_WINDUP,
-                    SLOT_KEYS, SLOT_UNLOCK_LEVELS, MOA_START_SKILLS)
+                    SLOT_KEYS, SLOT_UNLOCK_LEVELS, MOA_START_SKILLS, ABSORB_TIME)
 from fighter import Fighter
 from sprite import SheetSprite
 from stats import stats_at, exp_to_next
@@ -53,7 +54,7 @@ class Slot:
 
 
 class Moa(Fighter):
-    states = ['idle', 'move', 'dodge', 'cast', 'hurt', 'faint']
+    states = ['idle', 'move', 'dodge', 'cast', 'hurt', 'faint', 'absorb']
 
     def __init__(self, x, y, battle_map):
         self.x, self.y = x, y
@@ -78,6 +79,7 @@ class Moa(Fighter):
         self.level_up_time = 0.0       # 레벨이 오른 뒤 화면에 표시할 남은 시간
         self.slots = [Slot(k, lv, s) for k, lv, s in zip(SLOT_KEYS, SLOT_UNLOCK_LEVELS, MOA_START_SKILLS)]
         self.casting_slot = None
+        self.absorb_from = None        # 흡수하는 대상 (검은 기운이 나온 정령)
         self.cast_info = None
 
         self.machine = Machine(model=self, states=Moa.states, initial='idle',
@@ -90,7 +92,9 @@ class Moa(Fighter):
         self.machine.add_transition('cast_end', 'cast', 'idle')
         self.machine.add_transition('hit', ['idle', 'move', 'cast', 'hurt'], 'hurt')
         self.machine.add_transition('recover', 'hurt', 'idle')
-        self.machine.add_transition('faint', ['idle', 'move', 'dodge', 'cast', 'hurt'], 'faint')
+        self.machine.add_transition('faint', ['idle', 'move', 'dodge', 'cast', 'hurt', 'absorb'], 'faint')
+        self.machine.add_transition('absorb_start', ['idle', 'move'], 'absorb')
+        self.machine.add_transition('absorb_end', 'absorb', 'idle')
         self.on_enter_idle()
 
     def reset_state_time(self):
@@ -159,6 +163,25 @@ class Moa(Fighter):
             if self.level >= s.unlock_level:
                 s.forced = False
         self.level_up_time = 1.5
+
+    # ── 흡수 (F) ─────────────────────────────────────
+    @property
+    def can_absorb(self):
+        return self.state in ('idle', 'move')
+
+    def start_absorb(self, source):
+        """검은 기운이 나온 정령 쪽을 보고 흡수 동작을 한다."""
+        self.absorb_from = source
+        self.face = 'left' if source.x < self.x else 'right'
+        self.absorb_start()
+
+    def on_enter_absorb(self):
+        self.sprite.play('absorb', self.face, restart=True, duration=ABSORB_TIME)
+
+    def update_absorb(self, dt):
+        if self.state_time >= ABSORB_TIME:
+            self.absorb_from = None
+            self.absorb_end()
 
     # ── 맞기 (Fighter) ───────────────────────────────
     def react_to_hit(self, from_x, from_y):
