@@ -4,7 +4,7 @@
     idle ──chase──▶ move ──reach──▶ attack ──attack_end──▶ idle
     idle/move/attack ──hit──▶ hurt ──recover──▶ idle     (짧게 밀려나고, 예고 중인 공격은 취소)
     (어느 상태든) ──faint──▶ faint                        (HP 0 → 기절. 흡수될 때까지 그대로)
-    오프닝 규칙: 토리는 15초가 지나면 스스로를 공격해 기절한다 (psd 2.3, 남은 시간은 보여 주지 않음)
+    idle/move/attack/hurt ──hold_on──▶ hold ──release──▶ idle   (튜토리얼 연출·저항: 공격하지 않음, 무적)
     faint ──drain──▶ essence_out ──purify──▶ purified    (모아가 F 로 흡수 → 기운 빠짐 → 원래 색)
 할퀴기는 공격 동작이 시작될 때 상대 쪽으로 방향을 고정한다. 그래서 동작을 보고 피할 수 있다.
 """
@@ -17,7 +17,6 @@ import skills
 from config import (DUMMY_SHEET, DUMMY_BASE_STATS, DUMMY_LEVEL, DUMMY_BODY_RADIUS, DUMMY_SPEED,
                     DUMMY_SPRITE_OFFSET_Y, DUMMY_ATTACK_RANGE, DUMMY_ATTACK_GAP,
                     DUMMY_SKILL_WINDUP, DUMMY_PURE_SHEET, DUMMY_SKILLS, DUMMY_DROP_CHANCE,
-                    DUMMY_SELF_FAINT_TIME,
                     ENEMY_HURT_TIME, ENEMY_KNOCKBACK_SPEED)
 from fighter import Fighter
 from moa import face_of
@@ -27,7 +26,7 @@ SKILL = 'scratch'
 
 
 class TrainingThorn(Fighter):
-    states = ['idle', 'move', 'attack', 'hurt', 'faint', 'essence_out', 'purified']
+    states = ['idle', 'move', 'attack', 'hurt', 'faint', 'essence_out', 'purified', 'hold']
 
     def __init__(self, x, y, battle_map, target):
         self.x, self.y = x, y
@@ -46,7 +45,9 @@ class TrainingThorn(Fighter):
         self.pure_sprite = None
         self.skills = DUMMY_SKILLS
         self.drop_chance = DUMMY_DROP_CHANCE
-        self.alive_time = 0.0          # 오프닝: 버틴 시간
+        self.resisting = False         # 튜토리얼: 검은 기운에 저항 중 (기운 빠짐 동작 반복 + 떨림)
+        self.shake = 0.0               # 그림 떨림 세기 (px)
+        self.shake_time = 0.0
 
         self.machine = Machine(model=self, states=TrainingThorn.states, initial='idle',
                                ignore_invalid_triggers=True, after_state_change='reset_state_time')
@@ -59,11 +60,13 @@ class TrainingThorn(Fighter):
         self.machine.add_transition('faint', ['idle', 'move', 'attack', 'hurt'], 'faint')
         self.machine.add_transition('drain', 'faint', 'essence_out')
         self.machine.add_transition('purify', 'essence_out', 'purified')
+        self.machine.add_transition('hold_on', ['idle', 'move', 'attack', 'hurt'], 'hold')
+        self.machine.add_transition('release', 'hold', 'idle')
         self.on_enter_idle()
 
     @property
     def is_invincible(self):
-        return self.state in ('faint', 'essence_out', 'purified')
+        return self.state in ('faint', 'essence_out', 'purified', 'hold')
 
     @property
     def purify_done(self):
@@ -107,8 +110,8 @@ class TrainingThorn(Fighter):
         return None
 
     def kill(self):
-        """관리자 G: 즉사 → 바로 기절."""
-        if not self.is_down:
+        """관리자 G: 즉사 → 바로 기절. (연출로 붙잡혀 있을 때는 안 됨)"""
+        if not self.is_down and self.state != 'hold':
             self.apply_damage(self.hp)
 
     # ── 상태 진입 ────────────────────────────────────
@@ -137,16 +140,42 @@ class TrainingThorn(Fighter):
     def on_enter_purified(self):
         self.sprite.play('purify', self.face, restart=True)
 
+    def on_enter_hold(self):
+        self.cancel_pending()
+        self.dots.clear()
+        self.sprite.play('idle', self.face)
+
+    def on_exit_hold(self):
+        self.resist(False)
+        self.cooldown = 1.0                   # 풀려나자마자 때리지 않도록
+
+    # ── 튜토리얼 연출 ─────────────────────────────────
+    def resist(self, on):
+        """검은 기운에 저항: 기운 빠짐 동작을 되풀이하며 떤다."""
+        self.resisting = on
+        self.shake = 4.0 if on else 0.0
+        self.sprite.play('essence_out' if on else 'idle', self.face, restart=True)
+
+    def look_toward(self, x):
+        self.face = 'left' if x < self.x else 'right'
+        if self.pure_sprite:
+            self.pure_sprite.play(self.pure_sprite.key.rsplit('_', 1)[0], self.face)
+        self.sprite.play(self.sprite.key.rsplit('_', 1)[0], self.face)
+
+    def show_pure(self, on):
+        """원래 색(타락하기 전) 그림으로 보이기."""
+        if on:
+            self.pure_sprite = SheetSprite('sprite_sheets', DUMMY_PURE_SHEET)
+            self.pure_sprite.play('idle', self.face)
+        else:
+            self.pure_sprite = None
+
     # ── 매 프레임 ────────────────────────────────────
     def update(self, dt):
         self.state_time += dt
         self.cooldown = max(0.0, self.cooldown - dt)
         self.update_status(dt)
-        if DUMMY_SELF_FAINT_TIME and not self.is_down and self.opponent.state != 'faint':
-            self.alive_time += dt
-            if self.alive_time >= DUMMY_SELF_FAINT_TIME:   # 오프닝: 모아를 다치게 할까 두려워 스스로를 공격
-                self.kill()
-                return
+        self.shake_time += dt
         getattr(self, f'update_{self.state}')(dt)
         self.sprite.update(dt)
 
@@ -202,10 +231,18 @@ class TrainingThorn(Fighter):
         if self.pure_sprite:
             self.pure_sprite.update(dt)
 
+    def update_hold(self, dt):
+        if self.resisting and self.sprite.done:          # 기운 빠짐 동작을 계속 되풀이
+            self.sprite.play('essence_out', self.face, restart=True)
+        if self.pure_sprite:
+            self.pure_sprite.update(dt)
+
     def move_by(self, dx, dy):
         self.x, self.y = self.battle_map.clamp(self.x + dx, self.y + dy, self.radius)
 
     # ── 그리기 ──────────────────────────────────────
     def draw(self, camera):
         sx, sy = camera.to_screen(self.x, self.y)
+        if self.shake:
+            sx += math.sin(self.shake_time * 55) * self.shake
         (self.pure_sprite or self.sprite).draw(sx, sy + DUMMY_SPRITE_OFFSET_Y)

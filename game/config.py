@@ -56,7 +56,12 @@ DUMMY_SHEET = 'tori_corrupt_sheet'       # 타락한 토리 (가시몽 색 변�
 DUMMY_PURE_SHEET = 'tori_sheet'          # 흡수 뒤 원래 색으로 돌아온 토리
 DUMMY_SKILLS = ('scratch',)              # 흡수하면 얻을 수 있는 기술 (토리: 할퀴기)
 DUMMY_DROP_CHANCE = 1.0                  # 토리는 반드시. 일반 정령은 0.3 (psd 4.1)
-DUMMY_SELF_FAINT_TIME = 15.0             # 오프닝: 15초 버티면 토리가 스스로를 공격해 기절 (None 이면 없음)
+
+# ── 튜토리얼 (BATTLE_MAP 이 battle_tutorial 일 때) ──
+TUTORIAL = BATTLE_MAP == 'battle_tutorial'
+TUTORIAL_TORI_GAP = 380          # 시작할 때 토리를 모아 오른쪽 이만큼 앞에 둠 (둘 다 화면에 보이게)
+TUTORIAL_SURVIVE_TIME = 10.0     # 이만큼 버티면 토리가 타락에 저항 (남은 시간은 보여 주지 않음)
+TUTORIAL_FRAGMENT_DIST = 110     # 저항할 때 떨어져 나온 검은 기운이 토리 앞 이만큼에 떨어짐
 
 # ── 훈련용 상대 (임시 적, 배틀 AI 로 교체 예정) ── 토리는 가시몽 능력치·그림 크기 그대로
 DUMMY_BASE_STATS = (40, 10, 8)

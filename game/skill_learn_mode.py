@@ -23,13 +23,16 @@ CONFIRM_KEYS = (SDLK_RETURN, SDLK_KP_ENTER, SDLK_SPACE, SDLK_f)
 WRAP = 34                     # 설명 한 줄 글자 수
 
 new_skill = None              # 이번에 배울 수 있는 기술 id
+done_callback = None
 step = 'offer'
 cursor = 0                    # 버튼 또는 칸 고르기 위치
 
 
-def open_for(skill_id):
-    global new_skill
+def open_for(skill_id, on_done=None):
+    """on_done(learned) : 창이 닫힐 때 배웠는지(True/False)를 알려 준다."""
+    global new_skill, done_callback
     new_skill = skill_id
+    done_callback = on_done
     game_framework.push_mode(__import__('skill_learn_mode'))
 
 
@@ -57,9 +60,11 @@ def name(skill_id):
     return skills.info(skill_id)['name']
 
 
-def close(message):
+def close(message, learned=False):
     battle_mode.notice(message)
     game_framework.pop_mode()
+    if done_callback:
+        done_callback(learned)
 
 
 # ── 입력 ────────────────────────────────────────────
@@ -100,7 +105,7 @@ def confirm():
         if where == 'full':
             go('full')
         else:
-            close(f'{ui.eul(name(new_skill))} 배웠다!  ({moa.slots[where].key})')
+            close(f'{ui.eul(name(new_skill))} 배웠다!  ({moa.slots[where].key})', True)
     elif step == 'full':
         if cursor == 0:
             go('choose')
@@ -110,7 +115,7 @@ def confirm():
         old = moa.slots[cursor].skill_id
         moa.set_slot(cursor, new_skill)
         old_text = f'{ui.eul(name(old))} 잊고 ' if old else ''
-        close(f'{old_text}{ui.eul(name(new_skill))} 배웠다!  ({moa.slots[cursor].key})')
+        close(f'{old_text}{ui.eul(name(new_skill))} 배웠다!  ({moa.slots[cursor].key})', True)
 
 
 def back():

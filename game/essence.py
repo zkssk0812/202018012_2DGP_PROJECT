@@ -2,6 +2,10 @@
 
 적이 기절하면 그 자리에 생긴다. 바닥에 흡수 범위(원)를 그리고, 모아의 몸이 범위에 닿으면 F 로 흡수할 수 있다.
 흡수가 시작되면 모아에게 날아가 사라진다.
+
+조각(fragment): 튜토리얼에서 토리가 저항할 때 떨어져 나온 기운. (x, y) 에 포물선으로 떨어지고,
+흡수해도 정령은 정화되지 않는다 (drains_source = False).
+흡수가 끝나면 on_absorbed() 를 부른다.
 """
 import math
 
@@ -13,15 +17,20 @@ from collision import Circle
 
 
 class Essence:
-    def __init__(self, source):
-        self.source = source                       # 기절한 적
-        self.x, self.y = source.x, source.y
+    def __init__(self, source, x=None, y=None, drop_time=0.0, drains_source=True, on_absorbed=None):
+        self.source = source                       # 기운이 나온 정령
+        self.x = source.x if x is None else x
+        self.y = source.y if y is None else y
+        self.drains_source = drains_source         # 흡수하면 그 정령이 기운 빠짐 → 정화로 넘어가는지
+        self.on_absorbed = on_absorbed
+        self.drop_from = (source.x, source.y + ESSENCE_FLOAT_Y + 30)
+        self.drop_time, self.drop_total = 0.0, drop_time
         self.radius = ABSORB_RADIUS
         meta = resources.json_data('sprite_sheets', 'dark_essence.json')
         self.image = resources.image('sprite_sheets', meta['image'])
         self.cw, self.ch, self.frames, self.fps = meta['cell_w'], meta['cell_h'], meta['frames'], meta['fps']
         self.time = 0.0
-        self.state = 'waiting'                     # waiting → flying → done
+        self.state = 'dropping' if drop_time > 0 else 'waiting'   # (dropping →) waiting → flying → done
         self.fly_from = self.fly_to = None
         self.fly_time = self.fly_total = 0.0
 
@@ -41,6 +50,11 @@ class Essence:
 
     def position(self):
         """그림이 그려지는 자리 (기다릴 때는 적 위에 둥실, 날 때는 모아 쪽으로)."""
+        if self.state == 'dropping':               # 정령 몸에서 튀어나와 포물선으로 떨어짐
+            t = min(1.0, self.drop_time / self.drop_total)
+            fx, fy = self.drop_from
+            tx, ty = self.x, self.y + ESSENCE_FLOAT_Y
+            return fx + (tx - fx) * t, fy + (ty - fy) * t + math.sin(t * math.pi) * 70
         if self.state == 'flying':
             t = min(1.0, self.fly_time / self.fly_total)
             t = t * t * (3 - 2 * t)                # 처음과 끝을 부드럽게
@@ -51,7 +65,11 @@ class Essence:
 
     def update(self, dt):
         self.time += dt
-        if self.state == 'flying':
+        if self.state == 'dropping':
+            self.drop_time += dt
+            if self.drop_time >= self.drop_total:
+                self.state = 'waiting'
+        elif self.state == 'flying':
             self.fly_time += dt
             if self.fly_time >= self.fly_total:
                 self.state = 'done'

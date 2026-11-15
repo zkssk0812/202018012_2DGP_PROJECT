@@ -87,6 +87,12 @@ class HelperTest(unittest.TestCase):
         self.assertAlmostEqual(b.x - a.x, 80)
         self.assertAlmostEqual(a.y, 0)
 
+    def test_separate_fixed(self):
+        a, b = Body(0, 0, 40), Body(60, 0, 40)
+        separate(a, b, b_fixed=True)
+        self.assertAlmostEqual(b.x, 60)
+        self.assertAlmostEqual(a.x, -20)
+
     def test_separate_same_point(self):
         a, b = Body(10, 10, 40), Body(10, 10, 40)
         separate(a, b)

@@ -60,8 +60,9 @@ def point_segment_distance(px, py, x1, y1, x2, y2):
     return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
 
 
-def separate(a, b):
-    """두 몸(원)이 겹치면 반씩 밀어낸다. a, b 는 x, y, radius 속성을 가진 객체."""
+def separate(a, b, b_fixed=False):
+    """두 몸(원)이 겹치면 반씩 밀어낸다. b_fixed 면 b 는 그대로 두고 a 만 밀어낸다.
+    a, b 는 x, y, radius 속성을 가진 객체."""
     dx, dy = b.x - a.x, b.y - a.y
     d = math.hypot(dx, dy)
     overlap = a.radius + b.radius - d
@@ -69,6 +70,8 @@ def separate(a, b):
         return
     if d == 0:
         dx, dy, d = 1.0, 0.0, 1.0
-    push_x, push_y = dx / d * overlap / 2, dy / d * overlap / 2
+    share = 1.0 if b_fixed else 0.5
+    push_x, push_y = dx / d * overlap * share, dy / d * overlap * share
     a.x, a.y = a.x - push_x, a.y - push_y
-    b.x, b.y = b.x + push_x, b.y + push_y
+    if not b_fixed:
+        b.x, b.y = b.x + push_x, b.y + push_y
