@@ -25,6 +25,6 @@ def toggle_hurtbox():
 
 def draw_label():
     if ui.font(18):
-        ui.text(14, SCREEN_H - 20, 'ADMIN', 18, (255, 230, 0))
+        ui.text(14, SCREEN_H - 20, 'ADMIN   G 즉사 · K 기술 선택 · U 피격 범위', 18, (255, 230, 0))
     else:                                  # 글꼴이 없으면 노란 네모로 표시
         draw_rectangle(10, SCREEN_H - 30, 80, SCREEN_H - 10, 255, 230, 0)

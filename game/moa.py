@@ -121,6 +121,10 @@ class Moa(Fighter):
         s.skill_id, s.cooldown = skill_id, 0.0
         s.forced = forced and self.level < s.unlock_level
 
+    def clear_slot(self, i):
+        s = self.slots[i]
+        s.skill_id, s.cooldown, s.forced = None, 0.0, False
+
     def use_skill(self, i):
         if self.state in ('idle', 'move') and self.slot_ready(i):
             self.casting_slot = i

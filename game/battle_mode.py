@@ -3,7 +3,7 @@
 모아: 이동·회피·QWER 기술. 상대: 훈련용 가시몽 (배틀 AI 정령으로 바꾸기 전까지).
 """
 from pico2d import get_events
-from sdl2 import SDL_QUIT, SDL_KEYDOWN, SDLK_ESCAPE, SDLK_t, SDLK_u
+from sdl2 import SDL_QUIT, SDL_KEYDOWN, SDLK_ESCAPE, SDLK_t, SDLK_u, SDLK_g, SDLK_k
 
 import admin
 import combat
@@ -59,6 +59,12 @@ def handle_events():
             admin.toggle()
         elif e.type == SDL_KEYDOWN and e.key == SDLK_u:
             admin.toggle_hurtbox()
+        elif e.type == SDL_KEYDOWN and e.key == SDLK_g and admin.enabled:
+            enemy.kill()                                         # 관리자: 상대 즉사 → 기절
+        elif e.type == SDL_KEYDOWN and e.key == SDLK_k and admin.enabled:
+            import skill_select_mode                             # 관리자: 기술 선택 창 (게임 멈춤)
+            game_framework.push_mode(skill_select_mode)
+            return
         else:
             moa.handle_event(e)
 
