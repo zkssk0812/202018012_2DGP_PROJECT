@@ -14,3 +14,8 @@ RESOURCE_DIR = os.path.join(ROOT_DIR, 'Resource')
 SCREEN_W, SCREEN_H = 1280, 720
 SPRITE_SCALE = 0.5            # 스프라이트 시트는 0.5배로 그린다 (psd 5.3)
 MAX_FRAME_TIME = 0.05         # 프레임이 길게 끊겨도 한 번에 이만큼만 진행
+
+# ── 모아 ─────────────────────────────────────────────
+MOA_SPEED = 300               # 이동 속도
+MOA_BODY_RADIUS = 40          # 몸 원 반지름 (psd 5.3)
+MOA_SPRITE_OFFSET_Y = 20      # 몸 중심에서 그림 중심까지 (그림이 몸보다 위로 올라가 보이게)
