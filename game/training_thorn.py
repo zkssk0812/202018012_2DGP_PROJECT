@@ -156,8 +156,8 @@ class TrainingThorn(Fighter):
         self.shake = 4.0 if on else 0.0
         self.sprite.play('essence_out' if on else 'idle', self.face, restart=True)
 
-    def look_toward(self, x):
-        self.face = 'left' if x < self.x else 'right'
+    def look_toward(self, x, y=None):
+        self.face = face_of(x - self.x, (self.y if y is None else y) - self.y)
         if self.pure_sprite:
             self.pure_sprite.play(self.pure_sprite.key.rsplit('_', 1)[0], self.face)
         self.sprite.play(self.sprite.key.rsplit('_', 1)[0], self.face)
@@ -238,7 +238,7 @@ class TrainingThorn(Fighter):
             self.pure_sprite.update(dt)
 
     def move_by(self, dx, dy):
-        self.x, self.y = self.battle_map.clamp(self.x + dx, self.y + dy, self.radius)
+        self.x, self.y = self.battle_map.move(self.x, self.y, dx, dy, self.radius)
 
     # ── 그리기 ──────────────────────────────────────
     def draw(self, camera):

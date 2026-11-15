@@ -1,0 +1,17 @@
+"""모드(숲 ↔ 전투)를 오가도 이어지는 게임 상태.
+
+모아는 한 번만 만들고, 숲과 전투 맵을 오갈 때 같은 모아를 옮겨 쓴다 (HP · 레벨 · 경험치 · 기술 칸 유지).
+"""
+moa = None
+field_return = None          # 전투에서 돌아올 숲 위치 (x, y)
+
+
+def get_moa(area, x, y):
+    """모아를 (처음이면 만들어서) area 의 (x, y) 에 둔다."""
+    global moa
+    if moa is None:
+        from moa import Moa
+        moa = Moa(x, y, area)
+    else:
+        moa.enter_area(area, x, y)
+    return moa

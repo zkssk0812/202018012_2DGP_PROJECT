@@ -18,6 +18,10 @@ class BattleMap:
         self.bg = resources.image('battle_maps', info['background'])
         self.fg = resources.image('battle_maps', info['foreground'])
 
+    def move(self, x, y, dx, dy, radius):
+        """(x, y) 에서 (dx, dy) 만큼 움직인 자리. 전투 맵은 arena 안으로만 자른다."""
+        return self.clamp(x + dx, y + dy, radius)
+
     def clamp(self, x, y, radius):
         """몸(원)이 arena 밖으로 나가지 않도록 중심 좌표를 잘라 준다."""
         l, b, r, t = self.arena

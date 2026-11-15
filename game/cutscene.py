@@ -58,7 +58,7 @@ class Cutscene:
         draw_rectangle(0, 0, SCREEN_W, BAR_H, 0, 0, 0, filled=True)
         for t0, t1, who, text in self.lines:
             if t0 <= self.time < t1 and who == 'banner':
-                ui.text(SCREEN_W / 2 - len(text) * 13, SCREEN_H / 2 + 120, text, 28, (255, 220, 230))
+                ui.text(SCREEN_W / 2 - len(text) * 13, SCREEN_H - BAR_H - 44, text, 28, (255, 220, 230))   # 위쪽 띠 바로 아래
         ui.text(SCREEN_W - 150, BAR_H / 2, 'J : 건너뛰기', 15, (170, 170, 170))
 
 

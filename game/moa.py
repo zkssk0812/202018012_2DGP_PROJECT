@@ -178,6 +178,23 @@ class Moa(Fighter):
                 s.forced = False
         self.level_up_time = 1.5
 
+    # ── 맵 옮기기 ────────────────────────────────────
+    def enter_area(self, area, x, y):
+        """숲 ↔ 전투 맵을 오갈 때: 위치를 옮기고 하던 동작·입력은 정리한다 (HP·레벨·기술은 그대로)."""
+        self.battle_map = area
+        self.x, self.y = x, y
+        self.held.clear()
+        self.opponent = None
+        self.cast_info = None
+        self.absorb_from = None
+        self.dots.clear()
+        self.guard_time = 0.0
+        self.pending.clear()
+        if self.state != 'idle':
+            self.machine.set_state('idle')
+        self.reset_state_time()
+        self.on_enter_idle()
+
     # ── 흡수 (F) ─────────────────────────────────────
     @property
     def can_absorb(self):
@@ -342,7 +359,7 @@ class Moa(Fighter):
         pass
 
     def move_by(self, dx, dy):
-        self.x, self.y = self.battle_map.clamp(self.x + dx, self.y + dy, self.radius)
+        self.x, self.y = self.battle_map.move(self.x, self.y, dx, dy, self.radius)
 
     # ── 그리기 ──────────────────────────────────────
     def draw(self, camera):

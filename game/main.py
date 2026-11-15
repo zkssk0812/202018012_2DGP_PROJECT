@@ -6,12 +6,13 @@ from pico2d import open_canvas, close_canvas
 
 import game_framework
 import battle_mode
-from config import SCREEN_W, SCREEN_H
+import field_mode
+from config import SCREEN_W, SCREEN_H, TUTORIAL
 
 
 def main():
     open_canvas(SCREEN_W, SCREEN_H)
-    game_framework.run(battle_mode)
+    game_framework.run(field_mode if TUTORIAL else battle_mode)   # 튜토리얼이면 숲에서 시작
     close_canvas()
 
 

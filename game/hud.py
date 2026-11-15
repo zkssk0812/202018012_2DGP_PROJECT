@@ -15,7 +15,7 @@ def bar(x, y, w, h, ratio, color, back=(40, 40, 40)):
     draw_rectangle(x, y, x + w, y + h, 230, 230, 230)
 
 
-def draw_player(moa):
+def draw_player(moa, slots=True):
     # 왼쪽 아래: 레벨 · 회피 쿨다운 / HP / 경험치
     ui.text(20, 72, f'Lv {moa.level}', 20, (255, 230, 120))
     ready = 1 - moa.dodge_cooldown / DODGE_COOLDOWN
@@ -35,7 +35,8 @@ def draw_player(moa):
 
     if moa.level_up_time > 0:
         ui.text(20, 100, 'LEVEL UP!', 22, (255, 240, 120))
-    draw_slots(moa)
+    if slots:
+        draw_slots(moa)
 
 
 def draw_slots(moa):

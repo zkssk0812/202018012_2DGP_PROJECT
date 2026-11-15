@@ -20,7 +20,11 @@ class SheetSprite:
         k = f'{action}_{d}'
         if k in self.rows:
             return k
-        return f'{action}_{"left" if d == "left" else "right"}'
+        k = f'{action}_{"left" if d == "left" else "right"}'
+        if k in self.rows:
+            return k
+        # 방향 없는 시트(수풀 등): 그 동작의 첫 행, 없으면 첫 행
+        return next((r for r in self.rows if r.startswith(f'{action}_')), next(iter(self.rows)))
 
     def play(self, action, d, restart=False, duration=None):
         """동작을 바꾼다. duration 을 주면 그 시간 안에 한 번 다 재생되도록 fps 를 맞춘다."""
@@ -47,10 +51,11 @@ class SheetSprite:
         else:
             self.index, self.done = r['frames'] - 1, True
 
-    def draw(self, x, y):
-        """(x, y) = 화면 좌표의 그림 중심."""
+    def draw(self, x, y, scale=None):
+        """(x, y) = 화면 좌표의 그림 중심. scale 을 안 주면 SPRITE_SCALE(0.5)."""
+        scale = SPRITE_SCALE if scale is None else scale
         r = self.rows[self.key]
         left = self.index * self.cw
         bottom = (self.total - 1 - r['row']) * self.ch   # 이미지 맨 위가 row 0
         self.image.clip_draw(left, bottom, self.cw, self.ch, x, y,
-                             self.cw * SPRITE_SCALE, self.ch * SPRITE_SCALE)
+                             self.cw * scale, self.ch * scale)

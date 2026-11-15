@@ -50,6 +50,15 @@ SLOT_UNLOCK_LEVELS = (1, 1, 10, 15)
 MOA_START_SKILLS = (None, None, None, None)       # psd: 기술 0개로 시작, 첫 기술은 토리를 흡수해서 얻음
 MOA_SKILL_WINDUP = 0.1        # 모아 기술: 누르고 판정이 켜지기까지 (적은 더 길게 예고)
 
+# ── 숲(필드) 맵 ──
+START_FIELD = 'tutorial'      # 처음 시작하는 숲 맵 (Resource/forest_maps)
+FIELD_FEET_W = 28             # 숲에서 벽에 막히는 발밑 상자
+FIELD_FEET_H = 14
+FIELD_FEET_OFFSET = 36        # 몸 중심에서 발밑까지 (그림의 발 위치)
+FRUIT_HEAL = 0.3              # 회복 열매: 최대 HP 30% (psd 4.3)
+FRUIT_REGROW = 60.0           # 먹은 뒤 다시 열리기까지
+FADE_TIME = 0.6               # 숲 ↔ 전투 화면 전환 (어두워지는/밝아지는 시간)
+
 # ── 전투 맵과 상대 ──
 BATTLE_MAP = 'battle_tutorial'           # 오프닝 빈터 전투 맵
 DUMMY_SHEET = 'tori_corrupt_sheet'       # 타락한 토리 (가시몽 색 변경 개체, psd 6.2)

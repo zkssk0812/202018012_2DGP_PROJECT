@@ -19,14 +19,15 @@ import admin
 import combat
 import debug_draw
 import game_framework
+import fade
 import hud
+import world
 import tutorial
 from battle_map import BattleMap
 from camera import Camera
 from collision import separate
-from config import FAINT_RESTART_TIME, BATTLE_MAP, ABSORB_TIME, DUMMY_RESPAWN_TIME, TUTORIAL
+from config import FAINT_RESTART_TIME, BATTLE_MAP, ABSORB_TIME, DUMMY_RESPAWN_TIME, FADE_TIME
 from essence import Essence
-from moa import Moa
 from stats import exp_reward
 from training_thorn import TrainingThorn
 
@@ -50,14 +51,14 @@ def init():
 def start():
     global moa, faint_time
     combat.clear()
-    moa = Moa(*battle_map.player_start, battle_map)
+    moa = world.get_moa(battle_map, *battle_map.player_start)    # 숲에서 온 그 모아 (HP·기술 유지)
     moa.on_dot_tick = combat.dot_tick_fx
     spawn_enemy()
     faint_time = 0.0
-    tutorial.active = False
-    if TUTORIAL:
-        tutorial.start(sys.modules[__name__])
+    if tutorial.active and tutorial.phase == 'to_battle':
+        tutorial.attach_battle(sys.modules[__name__])
     camera.follow(*camera_target())
+    fade.in_(FADE_TIME)
 
 
 def spawn_enemy():
@@ -78,13 +79,19 @@ def finish():
     combat.clear()
 
 
+def go_field():
+    """화면을 어둡게 하고 숲으로 돌아간다 (돌아갈 자리는 world.field_return)."""
+    import field_mode
+    fade.out(FADE_TIME, lambda: game_framework.change_mode(field_mode))
+
+
 def handle_events():
     for e in get_events():
         if e.type == SDL_QUIT:
             game_framework.quit()
         elif e.type == SDL_KEYDOWN and e.key == SDLK_ESCAPE:   # 임시: 일시정지 화면이 생기기 전까지는 종료
             game_framework.quit()
-        elif tutorial.locked():                                  # 연출 중: J 건너뛰기 말고는 받지 않음
+        elif tutorial.locked() or fade.busy():                   # 연출·화면 전환 중: J 건너뛰기 말고는 받지 않음
             if e.type == SDL_KEYDOWN and e.key == SDLK_j:
                 tutorial.skip()
         elif e.type == SDL_KEYDOWN and e.key == SDLK_t:
@@ -133,6 +140,7 @@ def update(dt):
     update_essence(dt)
     update_faint(dt)
     tutorial.update(dt)
+    fade.update(dt)
     global notice_time
     notice_time = max(0.0, notice_time - dt)
     camera.follow_smooth(*camera_target(), dt)
@@ -227,6 +235,7 @@ def draw():
     if admin.show_hurtbox:
         debug_draw.hurtbox(moa, camera)
         debug_draw.hurtbox(enemy, camera)
+    fade.draw()
 
 
 def draw_debug():
