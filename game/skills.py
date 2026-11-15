@@ -6,6 +6,7 @@ cast(skill_id, caster) 가 판정·이펙트를 combat 에 넣고, 시전자가 
 caster 에 필요한 것: x, y, aim_angle(), opponent, skill_windup, fx_owner, add_guard()
 """
 import math
+import random
 
 import combat
 from config import FX_SKIP
@@ -70,6 +71,12 @@ KIND_NAMES = {'melee': '근접', 'melee_dot': '근접 지속', 'ranged': '원거
 
 CAST_LOCK = 0.3          # 기술을 쓰는 동안 움직이지 못하는 기본 시간
 
+# 연속 주먹 연출
+FLURRY_GAP = 0.06        # 주먹 그림 사이 간격 → 0.75초 동안 약 12개
+FLURRY_SIDE = 14         # 주먹이 나가는 위치를 옆으로 흔드는 폭
+FLURRY_ANIM_TIME = 0.12  # 시전자의 근접 동작 한 번 길이 (되풀이)
+FLURRY_IMPACT = 80       # 주먹 그림(rapid_punch) 칸에서 충격이 생기는 x 위치
+
 
 def info(skill_id):
     return SKILLS[skill_id]
@@ -107,12 +114,13 @@ def cast(skill_id, caster):
         atk = attack(Sector(x, y, s['r'], angle, math.radians(s['angle'])), windup)
         atk.on_start = fx_at(s['fx'], x, y, angle, scale=s['r'] / 136, skip=FX_SKIP)
 
-    elif shape == 'multi_sector':                       # 연속 주먹: 타마다 따로 판정
+    elif shape == 'multi_sector':                       # 연속 주먹: 판정은 타마다 따로 (3타)
         for k in range(s['hits']):
             d = windup + k * s['interval']
-            atk = attack(Sector(x, y, s['r'], angle, math.radians(s['angle'])), d)
-            atk.on_start = fx_at(s['fx'], x, y, angle, scale=s['r'] / 120, skip=FX_SKIP)
+            attack(Sector(x, y, s['r'], angle, math.radians(s['angle'])), d)
+        flurry(caster, s, x, y, angle, windup)
         result['lock'] = windup + s['hits'] * s['interval']
+        result['anim_repeat'] = FLURRY_ANIM_TIME       # 근접 동작을 빠르게 되풀이
 
     elif shape == 'capsule':                            # 빔: 즉시 판정, active 동안 유지
         cap = Capsule.from_origin(x, y, angle, s['length'], s['r'])
@@ -156,6 +164,27 @@ def cast(skill_id, caster):
         result['lock'] = 0.15
 
     return result
+
+
+def flurry(caster, s, x, y, angle, start):
+    """연속 주먹 연출: 부채꼴 안으로 주먹이 각도·위치·크기를 조금씩 달리하며 쏟아진다.
+    그림만 많고, 피해 판정은 hits(3타) 그대로다."""
+    duration = s['hits'] * s['interval']
+    count = max(1, int(duration / FLURRY_GAP))
+    half = math.radians(s['angle']) / 2
+    info = Effect(caster.fx_owner, s['fx'], 0, 0).info
+    impact = FLURRY_IMPACT - info['origin'][0]        # 그림에서 시전자 자리 → 주먹이 부딪치는 자리
+    for k in range(count):
+        a = angle + random.uniform(-half, half) * 0.9
+        scale = random.uniform(0.55, 0.85)
+        dist = random.uniform(0.35, 0.95) * s['r']    # 부채꼴 안 여러 거리에 주먹이 떨어지게
+        back = dist - impact * scale                  # 부딪치는 자리가 dist 에 오도록 그림을 놓을 위치
+        side = random.uniform(-FLURRY_SIDE, FLURRY_SIDE)
+        fx_x = x + math.cos(a) * back - math.sin(a) * side
+        fx_y = y + math.sin(a) * back + math.cos(a) * side
+        fx = Effect(caster.fx_owner, s['fx'], fx_x, fx_y, a, scale)
+        combat.schedule(start + k * FLURRY_GAP + random.uniform(0, FLURRY_GAP * 0.5),
+                        lambda fx=fx: combat.add_effect(fx), owner=caster)
 
 
 def launch(caster, skill_id, s, angle, delay):

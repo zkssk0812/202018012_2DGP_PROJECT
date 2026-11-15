@@ -253,6 +253,10 @@ class Moa(Fighter):
 
     def update_cast(self, dt):
         info = self.cast_info
+        if info and info.get('anim_repeat'):           # 연속 주먹: 근접 동작을 짧게 되풀이
+            n = info['anim_repeat']
+            if int(self.state_time / n) != int((self.state_time - dt) / n):
+                self.sprite.play('melee', self.face, restart=True, duration=n)
         if info and info['dash']:                    # 돌진 기술: 판정이 켜진 뒤 그 길이만큼 이동
             dx, dy, speed, dash_time, start = info['dash']
             t0, t1 = self.state_time - dt, self.state_time

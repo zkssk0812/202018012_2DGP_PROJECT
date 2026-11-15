@@ -55,9 +55,11 @@ class Fighter:
         self.guard_rate, self.guard_time = rate, duration
 
     def cancel_pending(self):
+        import combat                       # combat 이 fighter 를 쓰지 않도록 여기서 불러옴
         for atk in self.pending:
             atk.cancel()
         self.pending.clear()
+        combat.cancel_timers(self)
 
     def update_status(self, dt):
         self.guard_time = max(0.0, self.guard_time - dt)

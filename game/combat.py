@@ -4,11 +4,22 @@ from stats import damage
 
 attacks = []
 effects = []
+timers = []           # [남은 시간, 부를 함수, 주인] — 연출을 시간차로 띄울 때
 
 
 def clear():
     attacks.clear()
     effects.clear()
+    timers.clear()
+
+
+def schedule(delay, fn, owner=None):
+    timers.append([delay, fn, owner])
+
+
+def cancel_timers(owner):
+    """주인이 맞아서 기술이 끊기면 남은 연출도 지운다."""
+    timers[:] = [t for t in timers if t[2] is not owner]
 
 
 def add_attack(atk):
@@ -30,6 +41,12 @@ def dot_tick_fx(target):
 
 
 def update(dt, fighters):
+    for t in list(timers):
+        t[0] -= dt
+        if t[0] <= 0:
+            timers.remove(t)
+            t[1]()
+
     for atk in list(attacks):
         atk.update(dt)
         for target in fighters:
