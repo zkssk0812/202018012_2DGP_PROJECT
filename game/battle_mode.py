@@ -49,4 +49,5 @@ def draw():
 
 def debug_state():
     """테스트용: 현재 상태를 짧게 돌려준다."""
-    return f'moa {moa.state} ({moa.x:.0f},{moa.y:.0f}) face={moa.face}'
+    return (f'moa {moa.state} ({moa.x:.0f},{moa.y:.0f}) face={moa.face} '
+            f'cd={moa.dodge_cooldown:.2f} inv={moa.invincible:.2f}')

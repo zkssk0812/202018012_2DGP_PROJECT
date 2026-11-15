@@ -19,3 +19,8 @@ MAX_FRAME_TIME = 0.05         # 프레임이 길게 끊겨도 한 번에 이만�
 MOA_SPEED = 300               # 이동 속도
 MOA_BODY_RADIUS = 40          # 몸 원 반지름 (psd 5.3)
 MOA_SPRITE_OFFSET_Y = 20      # 몸 중심에서 그림 중심까지 (그림이 몸보다 위로 올라가 보이게)
+
+# ── 회피 (Space) ── psd 4.4: 대시, 0.3초 무적, 쿨다운 1.5초
+DODGE_TIME = 0.3              # 대시 시간 = 무적 시간
+DODGE_SPEED = 800             # 대시 속도 → 거리 약 240
+DODGE_COOLDOWN = 1.5          # 회피를 시작한 순간부터 센다
