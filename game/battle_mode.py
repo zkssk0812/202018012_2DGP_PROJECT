@@ -5,7 +5,7 @@
 흡수 흐름 (psd 4.1):
     상대 HP 0 → 기절 → 그 자리에 검은 기운 + 흡수 범위 원
     → 모아 몸이 범위에 닿으면 F 안내 → F → 기운이 모아에게 날아옴, 상대는 기운이 빠지고 원래 색으로
-    → 흡수가 끝나면 경험치 + 기술 (빈칸에 자동, 꽉 차면 교체 창, 이미 가진 기술은 안 나옴)
+    → 흡수가 끝나면 경험치 + 기술 배우기 창 (배운다/배우지 않는다, 꽉 차면 버릴 기술 고르기)
     → (임시) 잠시 뒤 새 상대가 나옴. 나중엔 여기서 전투 맵을 빠져나가 숲으로 돌아간다.
 """
 from pico2d import get_events
@@ -16,8 +16,6 @@ import combat
 import debug_draw
 import game_framework
 import hud
-import skills
-import ui
 from battle_map import BattleMap
 from camera import Camera
 from collision import separate
@@ -146,13 +144,8 @@ def give_skill():
     if skill_id is None:
         notice('기운을 흡수했다')
         return
-    name = skills.info(skill_id)['name']
-    where = moa.learn(skill_id)
-    if where == 'full':
-        import skill_swap_mode                    # 열린 칸이 꽉 참 → 버릴 기술 고르기 (게임 멈춤)
-        skill_swap_mode.open_for(skill_id)
-    else:
-        notice(f'{ui.eul(name)} 얻었다!  ({moa.slots[where].key})')
+    import skill_learn_mode                       # 배울지 묻는 창 (게임 멈춤)
+    skill_learn_mode.open_for(skill_id)
 
 
 def notice(text, duration=2.5):

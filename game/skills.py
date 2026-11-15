@@ -66,6 +66,27 @@ ORDER = ['scratch', 'thorn_stab', 'dew_shot', 'water_shield',
          'wind_shot', 'venom_wind', 'triple_gust', 'wind_blade',
          'rock_charge', 'dust_whirl', 'rapid_punch', 'slam']
 
+# 기술 설명 (기술을 배울 때 창에 보여 준다)
+DESCRIPTIONS = {
+    'scratch':      '앞쪽 넓은 부채꼴을 날카롭게 할퀸다.',
+    'thorn_stab':   '가시로 앞쪽을 찌른다. 맞은 상대는 4초 동안 매초 최대 HP 3% 피해를 입는다.',
+    'dew_shot':     '작은 이슬 방울을 앞으로 쏜다.',
+    'water_shield': '1초 동안 물방울 막을 둘러 받는 피해를 70% 줄인다.',
+    'dash_claw':    '앞으로 길게 돌진하며 지나가는 길의 상대를 할퀸다.',
+    'shadow_mist':  '내 주변에 그림자 안개를 퍼뜨린다. 닿은 상대는 4초 동안 매초 최대 HP 4% 피해.',
+    'hard_fur':     '1.5초 동안 털을 단단하게 세워 받는 피해를 80% 줄인다.',
+    'light_beam':   '앞으로 곧게 뻗는 빛줄기를 쏜다. 멀리까지 닿는다.',
+    'poison_shot':  '독가루 덩어리를 쏜다. 터진 자리 주변의 상대는 4초 동안 매초 최대 HP 4% 피해.',
+    'wind_shot':    '빠른 바람 덩어리를 앞으로 쏜다.',
+    'venom_wind':   '독이 섞인 바람을 쏜다. 맞은 상대는 4초 동안 매초 최대 HP 4% 피해.',
+    'triple_gust':  '바람 덩어리 세 발을 부채꼴로 한꺼번에 쏜다. 발마다 따로 맞는다.',
+    'wind_blade':   '모든 것을 꿰뚫는 아주 긴 바람 칼날을 날린다.',
+    'rock_charge':  '바위처럼 단단한 몸으로 앞으로 돌진해 들이받는다.',
+    'dust_whirl':   '내 주변에 흙먼지 회오리를 일으킨다. 닿은 상대는 4초 동안 매초 최대 HP 4% 피해.',
+    'rapid_punch':  '앞쪽 좁은 부채꼴에 주먹을 쉴 새 없이 퍼붓는다. 0.25초마다 3번 맞는다.',
+    'slam':         '상대가 있던 자리로 뛰어올라 내려찍는다. 0.5초 뒤 넓은 범위에 큰 피해.',
+}
+
 KIND_NAMES = {'melee': '근접', 'melee_dot': '근접 지속', 'ranged': '원거리', 'ranged_dot': '원거리 지속',
               'guard': '방어', 'special': '특별'}
 
@@ -80,6 +101,16 @@ FLURRY_IMPACT = 80       # 주먹 그림(rapid_punch) 칸에서 충격이 생기
 
 def info(skill_id):
     return SKILLS[skill_id]
+
+
+def power_text(skill_id):
+    """위력 표시: 없으면 '-', 여러 번이면 '30 × 3'."""
+    s = SKILLS[skill_id]
+    p = s.get('power')
+    if p is None:
+        return '-'
+    n = s.get('hits') or s.get('count')
+    return f'{p} × {n}' if n else str(p)
 
 
 def anim_of(skill_id):
