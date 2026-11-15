@@ -38,9 +38,9 @@ MOA_LEVEL = 1
 # ── 훈련용 가시몽 (1주차 임시 적, 2주차에 배틀 AI 로 교체) ──
 DUMMY_BASE_STATS = (40, 10, 8)
 DUMMY_LEVEL = 3
-DUMMY_BODY_RADIUS = 30
+DUMMY_BODY_RADIUS = 24        # 둥근 몸통에 맞춤 (잎·팔은 판정에서 뺌)
 DUMMY_SPEED = 160
-DUMMY_SPRITE_OFFSET_Y = 20
+DUMMY_SPRITE_OFFSET_Y = 10    # 몸통 중심이 그림 중심보다 10px 아래
 DUMMY_ATTACK_RANGE = 140      # 몸 중심 사이 거리가 이보다 가까우면 할퀴기 (할퀴기 닿는 거리 120 + 모아 몸 28 안쪽)
 DUMMY_ATTACK_GAP = 0.6        # 기술 사이 짧은 틈
 
