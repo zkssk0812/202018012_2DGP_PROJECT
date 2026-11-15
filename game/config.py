@@ -24,3 +24,31 @@ MOA_SPRITE_OFFSET_Y = 20      # 몸 중심에서 그림 중심까지 (그림이 
 DODGE_TIME = 0.3              # 대시 시간 = 무적 시간
 DODGE_SPEED = 800             # 대시 속도 → 거리 약 240
 DODGE_COOLDOWN = 1.5          # 회피를 시작한 순간부터 센다
+
+# ── 피격 ── psd 4.4: 넉백 + 0.5초 무적
+HURT_TIME = 0.2               # 넉백되는 동안 조작 불가
+KNOCKBACK_SPEED = 450         # → 거리 약 90
+HIT_INVINCIBLE = 0.5
+FAINT_RESTART_TIME = 2.0      # 쓰러진 뒤 다시 시작하기까지
+
+# ── 능력치 ── psd 4.7: HP / 공격 / 방어
+MOA_BASE_STATS = (45, 12, 10)
+MOA_LEVEL = 1
+
+# ── 훈련용 가시몽 (1주차 임시 적, 2주차에 배틀 AI 로 교체) ──
+DUMMY_BASE_STATS = (40, 10, 8)
+DUMMY_LEVEL = 3
+DUMMY_BODY_RADIUS = 40
+DUMMY_SPEED = 160
+DUMMY_SPRITE_OFFSET_Y = 20
+DUMMY_ATTACK_RANGE = 150      # 몸 중심 사이 거리가 이보다 가까우면 할퀴기
+DUMMY_ATTACK_GAP = 0.6        # 기술 사이 짧은 틈
+
+# ── 기술: 할퀴기 (psd 5.2, 5.3) ──
+SCRATCH_POWER = 40
+SCRATCH_RADIUS = 120
+SCRATCH_ANGLE = 90            # 도
+SCRATCH_COOLDOWN = 1.0
+SCRATCH_WINDUP = 0.3          # 공격 동작 시작 → 판정이 생기기까지
+SCRATCH_ACTIVE = 0.1          # 판정이 남아 있는 시간
+SCRATCH_FX_LEAD = 0.1         # 이펙트를 판정보다 이만큼 먼저 시작
