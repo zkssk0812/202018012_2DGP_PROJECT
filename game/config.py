@@ -35,6 +35,12 @@ FAINT_RESTART_TIME = 2.0      # 쓰러진 뒤 다시 시작하기까지
 MOA_BASE_STATS = (45, 12, 10)
 MOA_LEVEL = 1
 
+# ── 기술 칸 ── psd 4.2: Q·W 시작, E Lv10, R Lv15
+SLOT_KEYS = ('Q', 'W', 'E', 'R')
+SLOT_UNLOCK_LEVELS = (1, 1, 10, 15)
+MOA_START_SKILLS = ('scratch', None, None, None)   # 임시: 오프닝이 생기기 전까지 Q 에 할퀴기
+MOA_SKILL_WINDUP = 0.1        # 모아 기술: 누르고 판정이 켜지기까지 (적은 더 길게 예고)
+
 # ── 훈련용 가시몽 (1주차 임시 적, 2주차에 배틀 AI 로 교체) ──
 DUMMY_BASE_STATS = (40, 10, 8)
 DUMMY_LEVEL = 3
@@ -44,11 +50,11 @@ DUMMY_SPRITE_OFFSET_Y = 5     # 원 중심이 그림 중심보다 5px 아래
 DUMMY_ATTACK_RANGE = 140      # 몸 중심 사이 거리가 이보다 가까우면 할퀴기 (할퀴기 닿는 거리 120 + 모아 몸 28 안쪽)
 DUMMY_ATTACK_GAP = 0.6        # 기술 사이 짧은 틈
 
-# ── 기술: 할퀴기 (psd 5.2, 5.3) ──
-SCRATCH_POWER = 40
-SCRATCH_RADIUS = 120
-SCRATCH_ANGLE = 90            # 도
-SCRATCH_COOLDOWN = 1.0
-SCRATCH_WINDUP = 0.3          # 공격 동작 시작 → 판정이 생기기까지
-SCRATCH_ACTIVE = 0.1          # 판정이 남아 있는 시간
-SCRATCH_FX_LEAD = 0.1         # 이펙트를 판정보다 이만큼 먼저 시작
+# 적이 맞았을 때: 짧게 밀려나고 하던 공격(예고 중)은 취소. 연속 주먹이 다 맞도록 적은 무적 없음
+ENEMY_HURT_TIME = 0.15
+ENEMY_KNOCKBACK_SPEED = 300
+DUMMY_SKILL_WINDUP = 0.3      # 적 기술: 동작 시작 → 판정 (보고 피할 수 있게)
+DUMMY_REVIVE_TIME = 3.0       # 임시: F 흡수가 생기기 전까지 기절하면 이 시간 뒤 다시 일어남
+
+# ── 기술 이펙트 ──
+FX_SKIP = 0.06                # 판정이 켜질 때 이펙트의 흐린 첫 프레임을 건너뜀

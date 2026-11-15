@@ -1,11 +1,12 @@
 """전투 모드: 전투 맵 위에서 1대1 전투를 한다.
 
-1주차: 모아 이동·회피, 훈련용 가시몽의 할퀴기에 맞는 피격 판정까지.
+모아: 이동·회피·QWER 기술. 상대: 훈련용 가시몽 (배틀 AI 정령으로 바꾸기 전까지).
 """
 from pico2d import get_events
 from sdl2 import SDL_QUIT, SDL_KEYDOWN, SDLK_ESCAPE, SDLK_t, SDLK_u
 
 import admin
+import combat
 import debug_draw
 import game_framework
 import hud
@@ -13,9 +14,7 @@ from battle_map import BattleMap
 from camera import Camera
 from collision import separate
 from config import FAINT_RESTART_TIME
-from effect import Effect
 from moa import Moa
-from stats import damage
 from training_thorn import TrainingThorn
 
 MAP_NAME = 'battle_forest1'
@@ -24,8 +23,6 @@ battle_map = None
 camera = None
 moa = None
 enemy = None
-attacks = []          # 지금 살아 있는 공격 판정
-effects = []
 faint_time = 0.0
 
 
@@ -38,17 +35,18 @@ def init():
 
 def start():
     global moa, enemy, faint_time
+    combat.clear()
     moa = Moa(*battle_map.player_start, battle_map)
     enemy = TrainingThorn(*battle_map.enemy_start, battle_map, moa)
-    attacks.clear()
-    effects.clear()
+    moa.opponent = enemy
+    for f in (moa, enemy):
+        f.on_dot_tick = combat.dot_tick_fx
     faint_time = 0.0
     camera.follow(moa.x, moa.y)
 
 
 def finish():
-    attacks.clear()
-    effects.clear()
+    combat.clear()
 
 
 def handle_events():
@@ -68,35 +66,17 @@ def handle_events():
 def update(dt):
     moa.update(dt)
     enemy.update(dt)
-    attacks.extend(enemy.new_attacks)
-    effects.extend(enemy.new_effects)
-    enemy.new_attacks.clear()
-    enemy.new_effects.clear()
 
-    if moa.state != 'dodge':                  # 회피 대시 중에는 적을 통과한다
+    # 몸끼리 밀어내기: 회피·돌진 중이거나 상대가 기절해 있으면 통과
+    passing = moa.state == 'dodge' or (moa.cast_info and moa.cast_info['dash']) or enemy.is_down
+    if not passing:
         separate(moa, enemy)
         moa.x, moa.y = battle_map.clamp(moa.x, moa.y, moa.radius)
         enemy.x, enemy.y = battle_map.clamp(enemy.x, enemy.y, enemy.radius)
 
-    resolve_attacks(dt)
-
-    for fx in effects:
-        fx.update(dt)
-    effects[:] = [fx for fx in effects if not fx.done]
-
+    combat.update(dt, (moa, enemy))
     update_faint(dt)
     camera.follow(moa.x, moa.y)
-
-
-def resolve_attacks(dt):
-    for atk in attacks:
-        atk.update(dt)
-        for target in (moa, enemy):
-            if atk.try_hit(target):
-                owner = atk.owner
-                target.take_hit(damage(atk.power, owner.attack, target.defense), owner.x, owner.y)
-                effects.append(Effect('monster', 'hit_spark', target.x, target.y))
-    attacks[:] = [a for a in attacks if not a.done]
 
 
 def update_faint(dt):
@@ -107,7 +87,7 @@ def update_faint(dt):
     faint_time += dt
     if faint_time >= FAINT_RESTART_TIME:
         faint_time = 0.0
-        attacks.clear()
+        combat.clear()
         moa.restart(*battle_map.player_start)
         enemy.x, enemy.y = battle_map.enemy_start
 
@@ -116,8 +96,7 @@ def draw():
     battle_map.draw_background(camera)
     for obj in sorted((moa, enemy), key=lambda o: -o.y):      # 화면 위쪽(뒤)부터
         obj.draw(camera)
-    for fx in effects:
-        fx.draw(camera)
+    combat.draw(camera)
     battle_map.draw_foreground(camera)
     hud.draw_enemy(enemy, camera)
     hud.draw_player(moa)
@@ -131,7 +110,9 @@ def draw():
 
 def draw_debug():
     debug_draw.arena(battle_map.arena, camera)
-    for atk in attacks:
+    for atk in combat.attacks:
+        if atk.cancelled:
+            continue
         color = debug_draw.HIT_COLOR if atk.is_active else debug_draw.HIT_WAIT_COLOR
         debug_draw.shape(atk.shape, camera, color)
 
@@ -139,5 +120,6 @@ def draw_debug():
 def debug_state():
     """테스트용: 현재 상태를 짧게 돌려준다."""
     return (f'moa {moa.state} ({moa.x:.0f},{moa.y:.0f}) hp={moa.hp}/{moa.max_hp} '
-            f'cd={moa.dodge_cooldown:.2f} inv={moa.invincible:.2f} | '
-            f'enemy {enemy.state} ({enemy.x:.0f},{enemy.y:.0f}) atk={len(attacks)}')
+            f'slots={[(s.skill_id, round(s.cooldown, 1)) for s in moa.slots]} | '
+            f'enemy {enemy.state} ({enemy.x:.0f},{enemy.y:.0f}) hp={enemy.hp}/{enemy.max_hp} '
+            f'dots={ {k: round(v[1], 1) for k, v in enemy.dots.items()} } atk={len(combat.attacks)}')

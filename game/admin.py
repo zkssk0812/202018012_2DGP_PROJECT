@@ -2,18 +2,15 @@
 
 T 로 켜고 끈다. 켜져 있으면 화면 구석에 ADMIN 을 띄우고 arena 와 공격 판정 도형을 그린다.
 U 로 피격 범위(몸 원)를 붉은색으로 보여 준다. 관리자 모드와 따로 켜고 끈다.
-G(전투 중 즉사)와 K(기술 선택)는 기술·흡수가 생기는 2주차에 붙인다.
+관리자 모드에서만: G = 전투 중 상대 즉사(기절), K = 기술 선택 창.
 """
-import os
+from pico2d import draw_rectangle
 
-from pico2d import load_font, draw_rectangle
-
+import ui
 from config import SCREEN_H
 
 enabled = False
 show_hurtbox = False
-_font = None
-FONT_PATHS = [r'C:\Windows\Fonts\malgun.ttf', r'C:\Windows\Fonts\arial.ttf']
 
 
 def toggle():
@@ -26,19 +23,8 @@ def toggle_hurtbox():
     show_hurtbox = not show_hurtbox
 
 
-def _get_font():
-    global _font
-    if _font is None:
-        for p in FONT_PATHS:
-            if os.path.exists(p):
-                _font = load_font(p, 18)
-                break
-    return _font
-
-
 def draw_label():
-    font = _get_font()
-    if font:
-        font.draw(14, SCREEN_H - 20, 'ADMIN', (255, 230, 0))
+    if ui.font(18):
+        ui.text(14, SCREEN_H - 20, 'ADMIN', 18, (255, 230, 0))
     else:                                  # 글꼴이 없으면 노란 네모로 표시
         draw_rectangle(10, SCREEN_H - 30, 80, SCREEN_H - 10, 255, 230, 0)
