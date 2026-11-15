@@ -55,7 +55,7 @@ SKILLS = {
     'dust_whirl':   dict(name='흙먼지 회오리', kind='melee_dot', shape='self_circle', r=180,
                          dot=(0.04, 4), cooldown=7.0, fx='dust_whirl'),
     'rapid_punch':  dict(name='연속 주먹', kind='special', shape='multi_sector', r=160, angle=60,
-                         hits=3, interval=0.25, power=30, cooldown=6.0, fx='rapid_punch'),
+                         hits=3, interval=0.25, power=40, cooldown=6.0, fx='rapid_punch'),
     'slam':         dict(name='내려찍기', kind='special', shape='slam', r=200, max_dist=400, warn=0.5,
                          power=100, cooldown=12.0, fx='slam_impact', warn_fx='slam_warn'),
 }
