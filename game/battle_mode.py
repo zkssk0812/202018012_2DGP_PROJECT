@@ -1,6 +1,6 @@
 """전투 모드: 전투 맵 위에서 1대1 전투를 한다.
 
-모아: 이동·회피·QWER 기술. 상대: 훈련용 가시몽 (배틀 AI 정령으로 바꾸기 전까지).
+모아: 이동·회피·QWER 기술. 상대: 훈련용 정령 (지금은 타락한 토리, 배틀 AI 정령으로 바꾸기 전까지).
 """
 from pico2d import get_events
 from sdl2 import SDL_QUIT, SDL_KEYDOWN, SDLK_ESCAPE, SDLK_t, SDLK_u, SDLK_g, SDLK_k
@@ -13,11 +13,10 @@ import hud
 from battle_map import BattleMap
 from camera import Camera
 from collision import separate
-from config import FAINT_RESTART_TIME
+from config import FAINT_RESTART_TIME, BATTLE_MAP
 from moa import Moa
 from training_thorn import TrainingThorn
 
-MAP_NAME = 'battle_forest1'
 
 battle_map = None
 camera = None
@@ -28,7 +27,7 @@ faint_time = 0.0
 
 def init():
     global battle_map, camera
-    battle_map = BattleMap(MAP_NAME)
+    battle_map = BattleMap(BATTLE_MAP)
     camera = Camera(battle_map.w, battle_map.h)
     start()
 

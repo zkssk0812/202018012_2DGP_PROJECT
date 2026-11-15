@@ -41,9 +41,13 @@ SLOT_UNLOCK_LEVELS = (1, 1, 10, 15)
 MOA_START_SKILLS = ('scratch', None, None, None)   # 임시: 오프닝이 생기기 전까지 Q 에 할퀴기
 MOA_SKILL_WINDUP = 0.1        # 모아 기술: 누르고 판정이 켜지기까지 (적은 더 길게 예고)
 
-# ── 훈련용 가시몽 (1주차 임시 적, 2주차에 배틀 AI 로 교체) ──
+# ── 전투 맵과 상대 ──
+BATTLE_MAP = 'battle_tutorial'           # 오프닝 빈터 전투 맵
+DUMMY_SHEET = 'tori_corrupt_sheet'       # 타락한 토리 (가시몽 색 변경 개체, psd 6.2)
+
+# ── 훈련용 상대 (임시 적, 배틀 AI 로 교체 예정) ── 토리는 가시몽 능력치·그림 크기 그대로
 DUMMY_BASE_STATS = (40, 10, 8)
-DUMMY_LEVEL = 3
+DUMMY_LEVEL = 2               # 토리 Lv2 (psd 6.1)
 DUMMY_BODY_RADIUS = 30        # 몸통 + 팔 대부분 + 잎 아래쪽
 DUMMY_SPEED = 160
 DUMMY_SPRITE_OFFSET_Y = 5     # 원 중심이 그림 중심보다 5px 아래

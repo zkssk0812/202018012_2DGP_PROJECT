@@ -1,4 +1,4 @@
-"""훈련용 가시몽 — 판정을 시험하기 위한 임시 적.
+"""훈련용 정령 — 판정을 시험하기 위한 임시 적. 그림은 config.DUMMY_SHEET (지금은 타락한 토리).
 
 다가와서 할퀴기만 한다. 배틀 AI(psd 4.6)를 가진 정령으로 바꾸기 전까지 쓴다.
     idle ──chase──▶ move ──reach──▶ attack ──attack_end──▶ idle
@@ -11,7 +11,7 @@ import math
 from transitions import Machine
 
 import skills
-from config import (DUMMY_BASE_STATS, DUMMY_LEVEL, DUMMY_BODY_RADIUS, DUMMY_SPEED,
+from config import (DUMMY_SHEET, DUMMY_BASE_STATS, DUMMY_LEVEL, DUMMY_BODY_RADIUS, DUMMY_SPEED,
                     DUMMY_SPRITE_OFFSET_Y, DUMMY_ATTACK_RANGE, DUMMY_ATTACK_GAP,
                     DUMMY_SKILL_WINDUP, DUMMY_REVIVE_TIME,
                     ENEMY_HURT_TIME, ENEMY_KNOCKBACK_SPEED)
@@ -30,7 +30,7 @@ class TrainingThorn(Fighter):
         self.radius = DUMMY_BODY_RADIUS
         self.battle_map = battle_map
         self.opponent = target
-        self.sprite = SheetSprite('sprite_sheets', 'thorn_corrupt1_sheet')
+        self.sprite = SheetSprite('sprite_sheets', DUMMY_SHEET)
         self.face = 'left'
         self.skill_windup = DUMMY_SKILL_WINDUP
         self.init_fighter(DUMMY_BASE_STATS, DUMMY_LEVEL, 'monster')
