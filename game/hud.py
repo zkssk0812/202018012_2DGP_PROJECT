@@ -61,6 +61,15 @@ def draw_slots(moa):
             ui.text(x + 6, y + 18, f'Lv{slot.unlock_level}', 13, (120, 120, 120))
 
 
+def draw_notice(text):
+    """화면 가운데 위 알림 (기술 획득 등)."""
+    w = 24 + len(text) * 18                  # 한글 17pt 기준 대략적인 글자 폭
+    x, y = (SCREEN_W - w) / 2, 600
+    draw_rectangle(x, y, x + w, y + 36, 25, 20, 40, filled=True)
+    draw_rectangle(x, y, x + w, y + 36, 200, 150, 255)
+    ui.text(x + 12, y + 18, text, 17, (240, 230, 255))
+
+
 def draw_absorb_prompt(moa, camera):
     """흡수 범위 안에 들어오면 모아 머리 위에 F 안내 (psd 4.1)."""
     sx, sy = camera.to_screen(moa.x, moa.y)

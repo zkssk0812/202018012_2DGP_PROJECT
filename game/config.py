@@ -47,13 +47,16 @@ EXP_REWARD_PER_LEVEL = 5
 # ── 기술 칸 ── psd 4.2: Q·W 시작, E Lv10, R Lv15
 SLOT_KEYS = ('Q', 'W', 'E', 'R')
 SLOT_UNLOCK_LEVELS = (1, 1, 10, 15)
-MOA_START_SKILLS = ('scratch', None, None, None)   # 임시: 오프닝이 생기기 전까지 Q 에 할퀴기
+MOA_START_SKILLS = (None, None, None, None)       # psd: 기술 0개로 시작, 첫 기술은 토리를 흡수해서 얻음
 MOA_SKILL_WINDUP = 0.1        # 모아 기술: 누르고 판정이 켜지기까지 (적은 더 길게 예고)
 
 # ── 전투 맵과 상대 ──
 BATTLE_MAP = 'battle_tutorial'           # 오프닝 빈터 전투 맵
 DUMMY_SHEET = 'tori_corrupt_sheet'       # 타락한 토리 (가시몽 색 변경 개체, psd 6.2)
 DUMMY_PURE_SHEET = 'tori_sheet'          # 흡수 뒤 원래 색으로 돌아온 토리
+DUMMY_SKILLS = ('scratch',)              # 흡수하면 얻을 수 있는 기술 (토리: 할퀴기)
+DUMMY_DROP_CHANCE = 1.0                  # 토리는 반드시. 일반 정령은 0.3 (psd 4.1)
+DUMMY_SELF_FAINT_TIME = 15.0             # 오프닝: 15초 버티면 토리가 스스로를 공격해 기절 (None 이면 없음)
 
 # ── 훈련용 상대 (임시 적, 배틀 AI 로 교체 예정) ── 토리는 가시몽 능력치·그림 크기 그대로
 DUMMY_BASE_STATS = (40, 10, 8)

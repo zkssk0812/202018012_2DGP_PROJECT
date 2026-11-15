@@ -5,7 +5,7 @@
 흡수 흐름 (psd 4.1):
     상대 HP 0 → 기절 → 그 자리에 검은 기운 + 흡수 범위 원
     → 모아 몸이 범위에 닿으면 F 안내 → F → 기운이 모아에게 날아옴, 상대는 기운이 빠지고 원래 색으로
-    → 흡수가 끝나면 경험치
+    → 흡수가 끝나면 경험치 + 기술 (빈칸에 자동, 꽉 차면 교체 창, 이미 가진 기술은 안 나옴)
     → (임시) 잠시 뒤 새 상대가 나옴. 나중엔 여기서 전투 맵을 빠져나가 숲으로 돌아간다.
 """
 from pico2d import get_events
@@ -16,6 +16,8 @@ import combat
 import debug_draw
 import game_framework
 import hud
+import skills
+import ui
 from battle_map import BattleMap
 from camera import Camera
 from collision import separate
@@ -32,6 +34,7 @@ enemy = None
 essence = None        # 상대가 기절하면 생기는 검은 기운
 faint_time = 0.0
 respawn_time = 0.0
+notice_text, notice_time = '', 0.0     # 화면 가운데 위에 잠깐 띄우는 알림
 
 
 def init():
@@ -114,6 +117,8 @@ def update(dt):
     combat.update(dt, (moa, enemy))
     update_essence(dt)
     update_faint(dt)
+    global notice_time
+    notice_time = max(0.0, notice_time - dt)
     camera.follow(moa.x, moa.y)
 
 
@@ -125,12 +130,34 @@ def update_essence(dt):
         return
     was_done = essence.done
     essence.update(dt)
-    if essence.done and not was_done:             # 흡수 완료 → 경험치
+    if essence.done and not was_done:             # 흡수 완료 → 경험치, 기술
         moa.gain_exp(exp_reward(enemy.level))
+        give_skill()
     if enemy.purify_done:                         # 임시: 원래 색으로 돌아오고 잠시 뒤 새 상대
         respawn_time += dt
         if respawn_time >= DUMMY_RESPAWN_TIME:
             spawn_enemy()
+
+
+def give_skill():
+    """흡수한 정령에게서 기술을 얻는다 (psd 4.1)."""
+    owned = [s.skill_id for s in moa.slots if s.skill_id]
+    skill_id = enemy.roll_skill(owned)
+    if skill_id is None:
+        notice('기운을 흡수했다')
+        return
+    name = skills.info(skill_id)['name']
+    where = moa.learn(skill_id)
+    if where == 'full':
+        import skill_swap_mode                    # 열린 칸이 꽉 참 → 버릴 기술 고르기 (게임 멈춤)
+        skill_swap_mode.open_for(skill_id)
+    else:
+        notice(f'{ui.eul(name)} 얻었다!  ({moa.slots[where].key})')
+
+
+def notice(text, duration=2.5):
+    global notice_text, notice_time
+    notice_text, notice_time = text, duration
 
 
 def update_faint(dt):
@@ -162,6 +189,8 @@ def draw():
     if can_absorb():
         hud.draw_absorb_prompt(moa, camera)
     hud.draw_player(moa)
+    if notice_time > 0:
+        hud.draw_notice(notice_text)
     if admin.enabled:
         draw_debug()
         admin.draw_label()

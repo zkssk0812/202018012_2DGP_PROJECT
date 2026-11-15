@@ -17,6 +17,14 @@ def font(size=16):
     return _fonts[size]
 
 
+def eul(word):
+    """받침이 있으면 '을', 없으면 '를' 을 붙인다. 예) 할퀴기를, 이슬탄을"""
+    last = word[-1]
+    if '가' <= last <= '힣':
+        return word + ('을' if (ord(last) - 0xAC00) % 28 else '를')
+    return word + '을(를)'
+
+
 def text(x, y, s, size=16, color=(255, 255, 255)):
     f = font(size)
     if f:

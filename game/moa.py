@@ -119,6 +119,20 @@ class Moa(Fighter):
         s = self.slots[i]
         return self.slot_open(i) and s.skill_id is not None and s.cooldown <= 0
 
+    def has_skill(self, skill_id):
+        return any(s.skill_id == skill_id for s in self.slots)
+
+    def learn(self, skill_id):
+        """흡수로 얻은 기술을 열린 빈칸에 넣는다 (psd 4.1).
+        돌려주는 값: 넣은 칸 번호, 이미 가진 기술이면 'owned', 열린 칸이 꽉 찼으면 'full'."""
+        if self.has_skill(skill_id):
+            return 'owned'
+        for i, s in enumerate(self.slots):
+            if self.slot_open(i) and s.skill_id is None:
+                self.set_slot(i, skill_id)
+                return i
+        return 'full'
+
     def set_slot(self, i, skill_id, forced=False):
         """칸에 기술을 넣는다. 같은 기술이 다른 칸에 있으면 그 칸은 비운다."""
         for k, s in enumerate(self.slots):

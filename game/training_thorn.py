@@ -4,17 +4,20 @@
     idle ──chase──▶ move ──reach──▶ attack ──attack_end──▶ idle
     idle/move/attack ──hit──▶ hurt ──recover──▶ idle     (짧게 밀려나고, 예고 중인 공격은 취소)
     (어느 상태든) ──faint──▶ faint                        (HP 0 → 기절. 흡수될 때까지 그대로)
+    오프닝 규칙: 토리는 15초가 지나면 스스로를 공격해 기절한다 (psd 2.3, 남은 시간은 보여 주지 않음)
     faint ──drain──▶ essence_out ──purify──▶ purified    (모아가 F 로 흡수 → 기운 빠짐 → 원래 색)
 할퀴기는 공격 동작이 시작될 때 상대 쪽으로 방향을 고정한다. 그래서 동작을 보고 피할 수 있다.
 """
 import math
+import random
 
 from transitions import Machine
 
 import skills
 from config import (DUMMY_SHEET, DUMMY_BASE_STATS, DUMMY_LEVEL, DUMMY_BODY_RADIUS, DUMMY_SPEED,
                     DUMMY_SPRITE_OFFSET_Y, DUMMY_ATTACK_RANGE, DUMMY_ATTACK_GAP,
-                    DUMMY_SKILL_WINDUP, DUMMY_PURE_SHEET,
+                    DUMMY_SKILL_WINDUP, DUMMY_PURE_SHEET, DUMMY_SKILLS, DUMMY_DROP_CHANCE,
+                    DUMMY_SELF_FAINT_TIME,
                     ENEMY_HURT_TIME, ENEMY_KNOCKBACK_SPEED)
 from fighter import Fighter
 from moa import face_of
@@ -41,6 +44,9 @@ class TrainingThorn(Fighter):
         self.attack_angle = 0.0
         self.knock_vx = self.knock_vy = 0.0
         self.pure_sprite = None
+        self.skills = DUMMY_SKILLS
+        self.drop_chance = DUMMY_DROP_CHANCE
+        self.alive_time = 0.0          # 오프닝: 버틴 시간
 
         self.machine = Machine(model=self, states=TrainingThorn.states, initial='idle',
                                ignore_invalid_triggers=True, after_state_change='reset_state_time')
@@ -93,6 +99,13 @@ class TrainingThorn(Fighter):
     def on_zero_hp(self):
         self.faint()
 
+    def roll_skill(self, owned):
+        """흡수했을 때 줄 기술 (psd 4.1). 이미 가진 기술은 빼고 고른다. 없으면 None."""
+        choices = [s for s in self.skills if s not in owned]
+        if choices and random.random() < self.drop_chance:
+            return random.choice(choices)
+        return None
+
     def kill(self):
         """관리자 G: 즉사 → 바로 기절."""
         if not self.is_down:
@@ -129,6 +142,11 @@ class TrainingThorn(Fighter):
         self.state_time += dt
         self.cooldown = max(0.0, self.cooldown - dt)
         self.update_status(dt)
+        if DUMMY_SELF_FAINT_TIME and not self.is_down and self.opponent.state != 'faint':
+            self.alive_time += dt
+            if self.alive_time >= DUMMY_SELF_FAINT_TIME:   # 오프닝: 모아를 다치게 할까 두려워 스스로를 공격
+                self.kill()
+                return
         getattr(self, f'update_{self.state}')(dt)
         self.sprite.update(dt)
 
