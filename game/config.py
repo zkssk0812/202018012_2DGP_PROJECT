@@ -20,10 +20,10 @@ MOA_SPEED = 300               # 이동 속도
 MOA_BODY_RADIUS = 28          # 몸 원 반지름 (psd 5.3)
 MOA_SPRITE_OFFSET_Y = 20      # 몸 중심에서 그림 중심까지 (그림이 몸보다 위로 올라가 보이게)
 
-# ── 회피 (Space) ── psd 4.4: 대시, 0.3초 무적, 쿨다운 1.5초
+# ── 회피 (Space) ── psd 4.4: 대시, 0.3초 무적, 쿨다운 1.0초
 DODGE_TIME = 0.3              # 대시 시간 = 무적 시간
 DODGE_SPEED = 800             # 대시 속도 → 거리 약 240
-DODGE_COOLDOWN = 1.5          # 회피를 시작한 순간부터 센다
+DODGE_COOLDOWN = 1.0          # 회피를 시작한 순간부터 센다
 
 # ── 피격 ── psd 4.4: 넉백 + 0.5초 무적
 HURT_TIME = 0.2               # 넉백되는 동안 조작 불가
@@ -78,7 +78,20 @@ BATTLE_END_DELAY = 1.2        # 마지막 정령이 원래 색으로 돌아오�
 # ── 정령 배틀 AI (psd 4.6) ── 정령 종류별 데이터는 spirit.py 의 SPIRITS
 SPIRIT_SPEED = 160
 SPIRIT_ATTACK_GAP = 0.6       # 기술 사이 짧은 틈
-SPIRIT_SKILL_WINDUP = 0.3     # 적 기술: 동작 시작 → 판정 (보고 피할 수 있게)
+SPIRIT_SKILL_WINDUP = 0.15    # 적 기술: 동작 시작 → 판정 (그 앞에 예고 SPIRIT_TELEGRAPH 가 따로 있음)
+SPIRIT_TELEGRAPH = 0.35       # 공격 예고 (머리 위 ❗): 이 동안 보고 피할 수 있다
+SPIRIT_MAX_ATTACKERS = 2      # 한 번에 공격(예고·공격 중)할 수 있는 정령 수
+SPIRIT_BACKOFF_TIME = 0.4     # 공격 뒤 물러나기 (근접형은 뒤로, 원거리형은 옆으로)
+SPIRIT_RETREAT_TIME = 1.5     # 위험(HP 낮음 + 방어 기술 못 씀)하면 거리를 벌리는 시간
+SPIRIT_RETREAT_COOLDOWN = 5.0
+SPIRIT_LEAD = 0.5             # 원거리 예측 사격: 모아가 움직일 곳을 이만큼만 앞서 노림 (1 = 정확히)
+SPIRIT_SPREAD_ANGLE = 70      # 근접형끼리 모아 둘레에서 이 각도(도)보다 붙지 않게 벌어짐 (포위)
+SPIRIT_WAIT_RING = 90         # 공격 차례가 아닌 근접형: 사거리보다 이만큼 바깥에서 맴돎
+# 적 회피: 모아의 공격이 날아오면 확률로 옆으로 대시 (모아보다 쿨타임 길고 무적 짧게)
+SPIRIT_DODGE_CHANCE = 0.4
+SPIRIT_DODGE_COOLDOWN = 4.0
+SPIRIT_DODGE_TIME = 0.25
+SPIRIT_DODGE_SPEED = 620
 SPIRIT_NEAR = 200             # "플레이어와 가깝다" = 몸 중심 사이 거리 ≤ 200 (psd 5.3)
 SPIRIT_LOW_HP = 0.3           # HP 30% 이하면 방어 기술
 RANGED_KEEP = (260, 520)      # 원거리형은 이 거리 사이를 유지 (가까우면 물러나고 멀면 다가감)

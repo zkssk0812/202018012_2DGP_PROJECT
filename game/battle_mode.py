@@ -83,6 +83,8 @@ def spawn(spirit_list):
         s = Spirit(kind, level, x, y, battle_map, moa)
         s.on_dot_tick = combat.dot_tick_fx
         enemies.append(s)
+    for s in enemies:
+        s.allies = enemies                                   # 공격 차례 나누기 · 포위에 씀
     enemy = enemies[0]
     essences.clear()
     update_target()
