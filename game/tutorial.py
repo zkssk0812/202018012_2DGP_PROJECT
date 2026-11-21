@@ -42,6 +42,11 @@ corrupting = 0.0             # intro: 토리 주위를 도는 검은 기운의 �
 H = None
 
 
+def running():
+    """튜토리얼이 아직 끝나지 않았으면 True (끝난 뒤에는 숲을 자유롭게 다닌다)."""
+    return active and phase != 'done'
+
+
 def locked():
     """연출 중이면 True: 플레이어 입력을 받지 않는다 (J 건너뛰기만)."""
     return active and scene is not None and not scene.done
@@ -195,8 +200,12 @@ def play_ending():
     run('ending', Cutscene(7.1, [], lines, on_end=finish_tutorial))
 
 
+TORI_STEP_ASIDE = 130       # 튜토리얼이 끝나면 토리가 길옆으로 비켜섬 (숲1 로 가는 길을 막지 않게)
+
+
 def finish_tutorial():
     run('done')
+    H.enemy.x += TORI_STEP_ASIDE
     H.notice('길을 따라 북쪽으로 가면 숲1 이다', 4.0)
 
 

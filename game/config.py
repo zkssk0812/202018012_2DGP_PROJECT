@@ -58,34 +58,35 @@ FIELD_FEET_OFFSET = 36        # 몸 중심에서 발밑까지 (그림의 발 위
 FRUIT_HEAL = 0.3              # 회복 열매: 최대 HP 30% (psd 4.3)
 FRUIT_REGROW = 60.0           # 먹은 뒤 다시 열리기까지
 FADE_TIME = 0.6               # 숲 ↔ 전투 화면 전환 (어두워지는/밝아지는 시간)
+FIELD_ENTRY = {'forest1': (310, 200)}   # 다른 숲에서 넘어왔을 때 나타나는 자리 (맵 start 는 아래쪽 나무 그늘에 가려짐)
 
-# ── 전투 맵과 상대 ──
-BATTLE_MAP = 'battle_tutorial'           # 오프닝 빈터 전투 맵
-DUMMY_SHEET = 'tori_corrupt_sheet'       # 타락한 토리 (가시몽 색 변경 개체, psd 6.2)
-DUMMY_PURE_SHEET = 'tori_sheet'          # 흡수 뒤 원래 색으로 돌아온 토리
-DUMMY_SKILLS = ('scratch',)              # 흡수하면 얻을 수 있는 기술 (토리: 할퀴기)
-DUMMY_DROP_CHANCE = 1.0                  # 토리는 반드시. 일반 정령은 0.3 (psd 4.1)
-
-# ── 튜토리얼 (BATTLE_MAP 이 battle_tutorial 일 때) ──
-TUTORIAL = BATTLE_MAP == 'battle_tutorial'
-TUTORIAL_TORI_GAP = 380          # 시작할 때 토리를 모아 오른쪽 이만큼 앞에 둠 (둘 다 화면에 보이게)
+# ── 튜토리얼 (숲 tutorial 에서 시작할 때) ──
+TUTORIAL = START_FIELD == 'tutorial'
+TUTORIAL_BATTLE_MAP = 'battle_tutorial'   # 토리와 싸우는 빈터 전투 맵
+TUTORIAL_TORI_LEVEL = 2                   # 토리 Lv2 (psd 6.1)
 TUTORIAL_SURVIVE_TIME = 10.0     # 이만큼 버티면 토리가 타락에 저항 (남은 시간은 보여 주지 않음)
 TUTORIAL_FRAGMENT_DIST = 110     # 저항할 때 떨어져 나온 검은 기운이 토리 앞 이만큼에 떨어짐
 
-# ── 훈련용 상대 (임시 적, 배틀 AI 로 교체 예정) ── 토리는 가시몽 능력치·그림 크기 그대로
-DUMMY_BASE_STATS = (40, 10, 8)
-DUMMY_LEVEL = 2               # 토리 Lv2 (psd 6.1)
-DUMMY_BODY_RADIUS = 30        # 몸통 + 팔 대부분 + 잎 아래쪽
-DUMMY_SPEED = 160
-DUMMY_SPRITE_OFFSET_Y = 5     # 원 중심이 그림 중심보다 5px 아래
-DUMMY_ATTACK_RANGE = 140      # 몸 중심 사이 거리가 이보다 가까우면 할퀴기 (할퀴기 닿는 거리 120 + 모아 몸 28 안쪽)
-DUMMY_ATTACK_GAP = 0.6        # 기술 사이 짧은 틈
+# ── 숲의 조우 (psd 4.3) ── 수풀 안에서 새 칸에 들어설 때마다 확률(맵 json 의 encounter_rate)로 조우
+ENCOUNTERS = {
+    # 숲 이름: 전투 맵, 나오는 정령, 레벨 범위, 한 번에 나오는 수
+    'forest1': dict(battle_map='battle_forest1', spirits=('thorn', 'dew'), levels=(3, 7), count=(2, 3)),
+}
+ENCOUNTER_COOLDOWN = 2.0      # 전투에서 돌아온 뒤 이 시간 동안은 조우하지 않음
+BATTLE_END_DELAY = 1.2        # 마지막 정령이 원래 색으로 돌아오고 숲으로 돌아가기까지
+
+# ── 정령 배틀 AI (psd 4.6) ── 정령 종류별 데이터는 spirit.py 의 SPIRITS
+SPIRIT_SPEED = 160
+SPIRIT_ATTACK_GAP = 0.6       # 기술 사이 짧은 틈
+SPIRIT_SKILL_WINDUP = 0.3     # 적 기술: 동작 시작 → 판정 (보고 피할 수 있게)
+SPIRIT_NEAR = 200             # "플레이어와 가깝다" = 몸 중심 사이 거리 ≤ 200 (psd 5.3)
+SPIRIT_LOW_HP = 0.3           # HP 30% 이하면 방어 기술
+RANGED_KEEP = (260, 520)      # 원거리형은 이 거리 사이를 유지 (가까우면 물러나고 멀면 다가감)
+SPIRIT_FIRST_DELAY = (0.8, 2.0)   # 전투가 시작되고 첫 기술까지 (여러 마리가 한꺼번에 때리지 않게 흩어 놓음)
 
 # 적이 맞았을 때: 짧게 밀려나고 하던 공격(예고 중)은 취소. 연속 주먹이 다 맞도록 적은 무적 없음
 ENEMY_HURT_TIME = 0.15
 ENEMY_KNOCKBACK_SPEED = 300
-DUMMY_SKILL_WINDUP = 0.3      # 적 기술: 동작 시작 → 판정 (보고 피할 수 있게)
-DUMMY_RESPAWN_TIME = 2.5      # 임시: 정화된 뒤 이 시간이 지나면 새 상대가 나옴 (나중엔 전투 맵을 빠져나감)
 
 # ── 흡수 (F) ── psd 4.1
 ABSORB_RADIUS = 80            # 검은 기운 흡수 범위 원 반지름 (psd 5.3)

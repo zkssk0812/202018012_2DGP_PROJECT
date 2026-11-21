@@ -4,8 +4,12 @@
 벽은 발밑 상자로 막는다 (몸 원이 아니라 발밑이 닿는지로 판정 — 나무 줄기 앞을 지나갈 수 있게).
 그리는 순서: 배경 → 수풀·열매·캐릭터 (화면 위쪽부터) → 전경(나무 윗부분).
 """
+import json
+import os
+
 import resources
-from config import SCREEN_W, SCREEN_H, FIELD_FEET_W, FIELD_FEET_H, FIELD_FEET_OFFSET, FRUIT_HEAL, FRUIT_REGROW
+from config import (SCREEN_W, SCREEN_H, FIELD_FEET_W, FIELD_FEET_H, FIELD_FEET_OFFSET, FRUIT_HEAL, FRUIT_REGROW,
+                    GAME_DIR)
 from sprite import SheetSprite
 
 
@@ -29,9 +33,13 @@ class Bush:
     def rustle(self):
         self.sprite.play('rustle', self.variant, restart=True)
 
+    def shake_encounter(self):
+        """조우: 수풀이 크게 흔들린다 (전투로 넘어가기 전까지)."""
+        self.sprite.play('encounter', self.variant, restart=True)
+
     def update(self, dt):
         self.sprite.update(dt)
-        if self.sprite.done:
+        if self.sprite.done and self.sprite.key.startswith('rustle'):
             self.sprite.play('idle', self.variant)
 
     def draw(self, camera):
@@ -84,6 +92,15 @@ class Fruit:
         self.image.clip_draw(k * cw, (m['rows_total'] - 1 - r['row']) * ch, cw, ch, sx, sy)
 
 
+def extra_bushes(name):
+    """game/data/extra_bushes.json 에 적어 둔, 원래 맵에 더하는 수풀."""
+    p = os.path.join(GAME_DIR, 'data', 'extra_bushes.json')
+    if not os.path.exists(p):
+        return []
+    with open(p, encoding='utf-8') as f:
+        return json.load(f).get(name, [])
+
+
 class FieldMap:
     def __init__(self, name):
         info = resources.json_data('forest_maps', f'{name}.json')
@@ -95,8 +112,10 @@ class FieldMap:
         self.exits = info.get('exits', [])
         self.bg = resources.image('forest_maps', info['background'])
         self.fg = resources.image('forest_maps', info['foreground'])
+        self.encounter_rate = info.get('encounter_rate', 0.0)
         sheet = info.get('bush_sheet', '').replace('.png', '')
-        self.bushes = [Bush(b['rect'], b['variant'], sheet) for b in info['bushes']] if sheet else []
+        bushes = info['bushes'] + extra_bushes(name)
+        self.bushes = [Bush(b['rect'], b['variant'], sheet) for b in bushes] if sheet else []
         if sheet:
             anchor = resources.json_data('forest_maps', f'{sheet}.json')['anchor']
             for b in self.bushes:
@@ -119,7 +138,10 @@ class FieldMap:
         return x, y
 
     def clamp(self, x, y, radius):
-        return min(max(x, radius), self.w - radius), min(max(y, radius), self.h - radius)
+        """맵 밖으로 나가지 않게. 숲은 발밑 기준이라 맵 가장자리의 출구까지 발이 닿는다."""
+        half = FIELD_FEET_W / 2
+        return (min(max(x, half), self.w - half),
+                min(max(y, FIELD_FEET_OFFSET), self.h + FIELD_FEET_OFFSET - FIELD_FEET_H))
 
     def bush_at(self, x, y):
         fx, fy = x, y - FIELD_FEET_OFFSET + 4

@@ -56,6 +56,8 @@ class Attack:
         """판정이 켜져 있고, 아직 안 맞힌 대상의 몸과 겹치면 True. 무적인 대상은 맞지 않는다."""
         if not self.is_active or target is self.owner or id(target) in self.already_hit:
             return False
+        if getattr(target, 'team', None) == getattr(self.owner, 'team', None):
+            return False                          # 같은 편(정령끼리)은 맞히지 않음
         if target.is_invincible:
             return False
         if self.shape.hits(target.x, target.y, target.radius):

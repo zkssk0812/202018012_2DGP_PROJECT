@@ -59,6 +59,7 @@ class Moa(Fighter):
     def __init__(self, x, y, battle_map):
         self.x, self.y = x, y
         self.radius = MOA_BODY_RADIUS
+        self.team = 'moa'
         self.battle_map = battle_map
         self.sprite = SheetSprite('sprite_sheets', 'moa_sheet')
         self.opponent = None
