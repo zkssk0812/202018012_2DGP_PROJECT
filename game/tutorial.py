@@ -16,6 +16,7 @@
     done       숲을 자유롭게 걸어 다닌다 (원래 색의 토리가 서 있음)
 
 [연출] 중에는 어떤 입력도 받지 않고, J 로 건너뛸 수 있다.
+P 를 누르면 (화면 전환 중이 아니면 언제든) 튜토리얼 전체를 건너뛰고 할퀴기를 얻는다.
 H 는 지금 튜토리얼이 붙어 있는 모드 모듈 (field_mode 또는 battle_mode).
 H 에 필요한 것: moa, enemy, notice(), (숲) go_battle(), (전투) go_field(), battle_map, set_essence()
 """
@@ -55,6 +56,32 @@ def locked():
 def skip():
     if locked():
         scene.skip()
+
+
+def skip_tutorial():
+    """P: 튜토리얼 전체를 건너뛴다. 할퀴기를 배운 채로 튜토리얼 숲에서 자유롭게 다닌다.
+    전투 맵이었으면 숲(들어왔던 자리)으로 돌아가고, 숲이면 그 자리에서 바로 끝난다."""
+    global phase, scene, corrupting, reoffer, wait_time
+    if not running():
+        return
+    moa = H.moa
+    if moa.learn(FIRST_SKILL) == 'full':          # 칸이 꽉 찼으면 첫 칸에 넣는다
+        moa.set_slot(0, FIRST_SKILL)
+    moa.hp = moa.max_hp
+    moa.dots.clear()
+    combat.clear()
+    scene, corrupting, reoffer, wait_time = None, 0.0, False, 0.0
+    phase = 'done'
+    if H.__name__ == 'battle_mode':
+        H.ending = True                           # 숲으로 넘어가는 동안 전투를 멈춤
+        H.go_field()                              # 숲에서는 phase 'done' 이라 토리가 길옆에 서 있음
+        return
+    tori = H.enemy
+    tori.shake = 0.0
+    tori.show_pure(True)
+    tori.pure_sprite.play('joy', tori.face)
+    tori.x += TORI_STEP_ASIDE
+    H.notice('튜토리얼을 건너뛰었다 (할퀴기를 배웠다). 북쪽으로 가면 숲1 이다', 4.0)
 
 
 def camera_target():

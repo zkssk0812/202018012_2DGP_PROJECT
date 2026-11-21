@@ -15,7 +15,7 @@ import math
 import sys
 
 from pico2d import get_events
-from sdl2 import SDL_QUIT, SDL_KEYDOWN, SDLK_ESCAPE, SDLK_t, SDLK_u, SDLK_g, SDLK_k, SDLK_f, SDLK_j
+from sdl2 import SDL_QUIT, SDL_KEYDOWN, SDLK_ESCAPE, SDLK_t, SDLK_u, SDLK_g, SDLK_k, SDLK_f, SDLK_j, SDLK_p
 
 import admin
 import combat
@@ -110,6 +110,8 @@ def handle_events():
             game_framework.quit()
         elif e.type == SDL_KEYDOWN and e.key == SDLK_ESCAPE:   # 임시: 일시정지 화면이 생기기 전까지는 종료
             game_framework.quit()
+        elif e.type == SDL_KEYDOWN and e.key == SDLK_p and not fade.busy():
+            tutorial.skip_tutorial()                               # 튜토리얼 전체 건너뛰기
         elif tutorial.locked() or fade.busy():                   # 연출·화면 전환 중: J 건너뛰기 말고는 받지 않음
             if e.type == SDL_KEYDOWN and e.key == SDLK_j:
                 tutorial.skip()
