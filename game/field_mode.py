@@ -27,7 +27,7 @@ from config import (FADE_TIME, FIELD_ENTRY, TUTORIAL, TUTORIAL_TORI_LEVEL, FIELD
                     ENCOUNTERS, ENCOUNTER_COOLDOWN)
 from field_map import FieldMap
 from moa import DIR_KEYS
-from spirit import Spirit
+from spirit import Spirit, SPIRITS
 
 ENCOUNTER_SHAKE = 0.7     # 조우: 수풀이 흔들리는 시간 (이동 막힘) 뒤 전투로
 
@@ -172,6 +172,17 @@ def can_encounter():
             and not tutorial.running())
 
 
+def pick_mixed(kinds, n):
+    """정령 n 마리를 고른다. 근접형·원거리형이 둘 다 있는 숲이면 각각 적어도 한 마리씩 섞는다."""
+    by_style = {}
+    for k in kinds:
+        by_style.setdefault(SPIRITS[k]['style'], []).append(k)
+    picked = [random.choice(group) for group in by_style.values()][:n]   # 종류(근접/원거리)마다 하나씩
+    picked += [random.choice(kinds) for _ in range(n - len(picked))]    # 나머지는 아무거나
+    random.shuffle(picked)
+    return picked
+
+
 def start_encounter(bush):
     """타락한 정령 2~3마리 (숲마다 정해진 종류와 레벨)."""
     global encounter_time
@@ -180,7 +191,7 @@ def start_encounter(bush):
     hi = max(lo, min(hi, moa.level + 2))                         # 모아보다 너무 높은 레벨은 나오지 않게
     n = random.randint(*enc['count'])
     world.encounter = dict(battle_map=enc['battle_map'],
-                           spirits=[(random.choice(enc['spirits']), random.randint(lo, hi)) for _ in range(n)])
+                           spirits=[(kind, random.randint(lo, hi)) for kind in pick_mixed(enc['spirits'], n)])
     bush.shake_encounter()
     moa.held.clear()
     if moa.state == 'move':
