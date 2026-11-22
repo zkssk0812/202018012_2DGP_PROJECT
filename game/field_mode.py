@@ -26,11 +26,13 @@ import world
 from camera import Camera
 from collision import separate
 from config import (FADE_TIME, FIELD_ENTRY, TUTORIAL, TUTORIAL_TORI_LEVEL, FIELD_FEET_OFFSET,
-                    ENCOUNTERS, ENCOUNTER_COOLDOWN, BOSSES, BOSS_TRIGGER_RADIUS, BOSS_TALK_TIME,
+                    ENCOUNTERS, ENCOUNTER_COOLDOWN, BOSSES, BOSS_TRIGGER_RADIUS,
                     BOSS_REWARD_LEVEL, ADMIN_WARP)
-from cutscene import bubble
+import story
+from cutscene import Cutscene
+from effect import Effect
 from field_map import FieldMap
-from moa import DIR_KEYS
+from moa import DIR_KEYS, face_of
 from spirit import Spirit, SPIRITS
 
 ENCOUNTER_SHAKE = 0.7     # 조우: 수풀이 흔들리는 시간 (이동 막힘) 뒤 전투로
@@ -41,7 +43,7 @@ moa = None
 enemy = None              # 튜토리얼의 토리 (숲에 서 있는 정령). 없으면 None
 boss = None               # 숲 끝 길목의 상위 정령. 없으면 None
 boss_inside = False       # 모아가 보스 범위 안에 있는지 (밖 → 안으로 들어설 때만 보스전)
-boss_talk = None          # 보스전 직전 말풍선 대사
+scene = None              # 숲에서 도는 이야기 연출 (Cutscene). 도는 동안 입력을 막고 J 로 건너뜀
 cur_bush = None
 on_exit = None
 safe_time = 0.0           # 이 시간 동안은 조우하지 않음 (전투에서 막 돌아왔을 때)
@@ -51,7 +53,7 @@ notice_text, notice_time = '', 0.0
 
 def init():
     global field_map, camera, moa, enemy, cur_bush, on_exit, safe_time, encounter_time
-    global boss, boss_inside, boss_talk
+    global boss, boss_inside, scene
     field_map = FieldMap(world.current_field)
     camera = Camera(field_map.w, field_map.h)
     pos = world.field_return or FIELD_ENTRY.get(world.current_field, field_map.start)
@@ -74,7 +76,7 @@ def init():
         else:
             tutorial.attach_field(me)         # 전투에서 돌아옴 → 마무리 / 이미 끝남
     place_boss()
-    boss_talk = None
+    scene = None
     if world.arrive_notice:
         notice(world.arrive_notice, 4.0)
         world.arrive_notice = None
@@ -114,15 +116,40 @@ def near_boss():
 
 def start_boss():
     """보스 범위에 들어섬: 멈추고 대사 → 화면이 어두워지며 보스전."""
-    global encounter_time, boss_talk
     info = BOSSES[field_map.name]
     world.encounter = dict(battle_map=info['battle_map'], spirits=[(info['kind'], info['level'])])
+    face_boss()
+
+    def shake():
+        boss.shake = 3.0
+
+    def glint():
+        boss.shake = 5.0
+        combat.add_effect(Effect('monster', 'warn_glint', boss.x, boss.y + 70, scale=1.6))
+
+    play_scene(story.BOSS_STORY[boss.kind]['before'], dict(shake=shake, glint=glint), on_end=go_battle)
+
+
+def face_boss():
+    """모아와 보스가 서로 바라본다."""
+    moa.face = face_of(boss.x - moa.x, boss.y - moa.y)
+    moa.on_enter_idle()
+    boss.look_toward(moa.x, moa.y)
+
+
+def play_scene(script, actions, on_end):
+    """이야기 연출을 시작한다 (story.py 의 대본). 도는 동안 입력을 막는다."""
+    global scene
+    actors = dict(actions, moa=moa, boss=boss)
+    lines, events, length = story.build(script, actors)
+    scene = Cutscene(length, events, lines, on_end)
     moa.held.clear()
     if moa.state == 'move':
         moa.stop()
-    boss.look_toward(moa.x, moa.y)
-    boss_talk = info['line']
-    encounter_time = BOSS_TALK_TIME
+
+
+def scene_locked():
+    return scene is not None and not scene.done
 
 
 def admin_boss_warp():
@@ -177,9 +204,11 @@ def handle_events():
                 tutorial.skip_tutorial()                         # 튜토리얼 전체 건너뛰기
             elif admin.enabled and not tutorial.locked():
                 admin_boss_warp()                                # 관리자: Lv10 + 기술 + 실프 앞으로
-        elif tutorial.locked() or fade.busy():                 # 연출·화면 전환 중: J 건너뛰기만
+        elif tutorial.locked() or scene_locked() or fade.busy():   # 연출·화면 전환 중: J 건너뛰기만
             if e.type == SDL_KEYDOWN and e.key == SDLK_j:
                 tutorial.skip()
+                if scene_locked():
+                    scene.skip()
         elif e.type == SDL_KEYDOWN and e.key == SDLK_t:
             admin.toggle()
         elif e.type == SDL_KEYDOWN and e.key == SDLK_u:
@@ -189,17 +218,19 @@ def handle_events():
 
 
 def camera_target():
-    if boss_talk and boss:                                       # 보스 대사: 모아와 보스 사이를 비춤
+    if scene_locked() and boss:                                  # 보스 연출: 모아와 보스 사이를 비춤
         return (moa.x + boss.x) / 2, (moa.y + boss.y) / 2 + 40
     return tutorial.camera_target() if tutorial.locked() else (moa.x, moa.y)
 
 
 def update(dt):
     global notice_time, safe_time
-    if encounter_time is None:
+    if encounter_time is None and not scene_locked():
         moa.update(dt)
     else:
-        moa.sprite.update(dt)                                    # 조우 중: 제자리에 멈춤
+        moa.sprite.update(dt)                                    # 조우·연출 중: 제자리에 멈춤
+    if scene_locked():
+        scene.update(dt)
     for npc in (enemy, boss):
         if npc:
             npc.update(dt)
@@ -218,6 +249,8 @@ def update(dt):
 def update_field_events(dt):
     """수풀 흔들기·조우, 열매 먹기, 출구."""
     global cur_bush, on_exit, encounter_time, boss_inside
+    if scene_locked() or fade.busy():
+        return
     if encounter_time is not None:                               # 수풀이 흔들리는 중 → 시간이 되면 전투로
         encounter_time -= dt
         if encounter_time <= 0 and not fade.busy():
@@ -311,10 +344,10 @@ def draw():
     combat.draw(camera)
     field_map.draw_foreground(camera)
     tutorial.draw_world(camera)
-    if boss_talk and boss:
-        sx, sy = camera.to_screen(boss.x, boss.y)
-        bubble(sx, sy + 90, boss_talk)
-    if tutorial.locked():
+    if scene_locked():
+        scene.draw_world(camera)
+        scene.draw_overlay()                                     # 연출 중에는 UI 를 숨기고 위아래 검은 띠
+    elif tutorial.locked():
         tutorial.draw_overlay()
     else:
         hud.draw_player(moa, slots=False)
