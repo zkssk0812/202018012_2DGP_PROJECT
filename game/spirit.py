@@ -40,7 +40,7 @@ from moa import face_of
 from sprite import SheetSprite
 
 # 정령 종류 (psd 6.2). radius · offset 은 그림의 몸통에 맞춘 피격 원 (offset = 원 중심에서 그림 중심까지)
-# dodge: 회피를 하는지 (튜토리얼 토리는 처음 배운 할퀴기를 맞혀 보는 단계라 피하지 않음)
+# folder: 그림 시트 폴더 (보스는 boss_sprites). dodge: 회피를 하는지 (튜토리얼 토리는 처음 배운 할퀴기를 맞혀 보는 단계라 피하지 않음)
 SPIRITS = {
     'tori':  dict(name='토리', sheet='tori_corrupt_sheet', pure='tori_sheet', base=(40, 10, 8),
                   skills=('scratch',), drop=1.0, radius=30, offset=5, style='melee', dodge=False),
@@ -48,6 +48,11 @@ SPIRITS = {
                   skills=('scratch', 'thorn_stab'), drop=0.3, radius=30, offset=5, style='melee', dodge=True),
     'dew':   dict(name='이슬방울', sheet='dew_corrupt1_sheet', pure='dew_pure_sheet', base=(34, 11, 9),
                   skills=('dew_shot', 'water_shield'), drop=0.3, radius=26, offset=8, style='ranged', dodge=True),
+    # 상위 정령 (보스). 움직임은 원거리형 AI + 특별 패턴 (boss.py). 이기면 특별 기술 1개 확정 (reward)
+    'sylph': dict(name='실프', sheet='sylph_corrupt_sheet', pure='sylph_pure_sheet', folder='boss_sprites',
+                  base=(80, 13, 11), skills=('wind_shot', 'venom_wind', 'triple_gust', 'wind_blade'),
+                  reward=('triple_gust', 'wind_blade'), drop=1.0, radius=38, offset=20, style='ranged',
+                  dodge=True, boss=True),
 }
 
 MELEE_KINDS = ('melee', 'melee_dot')
@@ -89,12 +94,16 @@ class Spirit(Fighter):
         self.radius = data['radius']
         self.sprite_offset = data['offset']
         self.pure_sheet = data['pure']
+        self.folder = data.get('folder', 'sprite_sheets')
+        self.boss = data.get('boss', False)
+        self.reward_skills = data.get('reward', data['skills'])
+        self.notify = None             # 알림을 띄우는 함수 (battle_mode.notice). 보스 패턴 안내에 씀
         self.style = data['style']
         self.can_dodge = data['dodge']
         self.battle_map = area
         self.opponent = target
         self.allies = [self]           # 같은 전투의 정령들 (battle_mode 가 채움). 공격 차례·포위에 씀
-        self.sprite = SheetSprite('sprite_sheets', data['sheet'])
+        self.sprite = SheetSprite(self.folder, data['sheet'])
         self.face = 'left'
         self.skill_windup = SPIRIT_SKILL_WINDUP
         self.init_fighter(data['base'], level, 'monster')
@@ -125,7 +134,7 @@ class Spirit(Fighter):
         self.shake_time = 0.0
         self.wander = random.uniform(0, math.tau)   # 원거리형이 옆으로 도는 방향
 
-        self.machine = Machine(model=self, states=Spirit.states, initial='idle',
+        self.machine = Machine(model=self, states=type(self).states, initial='idle',
                                ignore_invalid_triggers=True, after_state_change='reset_state_time')
         add = self.machine.add_transition
         add('think', 'idle', 'position')
@@ -204,6 +213,10 @@ class Spirit(Fighter):
         if far:
             return random.choice(far)
         return None
+
+    def cooldown_rate(self):
+        """기술 쿨다운 배율 (보스 광폭화 때 줄어든다)."""
+        return 1.0
 
     def has_turn(self):
         """공격 차례: 지금 예고·공격 중인 다른 정령이 SPIRIT_MAX_ATTACKERS 보다 적으면."""
@@ -337,7 +350,7 @@ class Spirit(Fighter):
 
     def roll_skill(self, owned):
         """흡수했을 때 줄 기술 (psd 4.1). 이미 가진 기술은 빼고 고른다. 없으면 None."""
-        choices = [s for s in self.skills if s not in owned]
+        choices = [s for s in self.reward_skills if s not in owned]
         if choices and random.random() < self.drop_chance:
             return random.choice(choices)
         return None
@@ -373,7 +386,7 @@ class Spirit(Fighter):
         if s['kind'] in RANGED_KINDS or s['shape'] == 'projectile':
             self.attack_angle = self.aim()                # 원거리: 쏘는 순간 예측해서 조준
         self.face = face_of(math.cos(self.attack_angle), math.sin(self.attack_angle))
-        self.skill_cd[skill_id] = s['cooldown']
+        self.skill_cd[skill_id] = s['cooldown'] * self.cooldown_rate()
         self.gap = SPIRIT_ATTACK_GAP
         self.sprite.play('attack', self.face, restart=True)
         skills.cast(skill_id, self)
@@ -434,7 +447,7 @@ class Spirit(Fighter):
     def show_pure(self, on):
         """원래 색(타락하기 전) 그림으로 보이기."""
         if on:
-            self.pure_sprite = SheetSprite('sprite_sheets', self.pure_sheet)
+            self.pure_sprite = SheetSprite(self.folder, self.pure_sheet)
             self.pure_sprite.play('idle', self.face)
         else:
             self.pure_sprite = None
@@ -563,7 +576,7 @@ class Spirit(Fighter):
     def update_purified(self, dt):
         # 원래대로 동작이 끝나면 원래 색 그림(정화된 모습)으로 바꿔 기뻐한다
         if self.sprite.done and self.pure_sprite is None:
-            self.pure_sprite = SheetSprite('sprite_sheets', self.pure_sheet)
+            self.pure_sprite = SheetSprite(self.folder, self.pure_sheet)
             self.pure_sprite.play('joy', self.face)
         if self.pure_sprite:
             self.pure_sprite.update(dt)

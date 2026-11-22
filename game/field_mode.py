@@ -2,10 +2,12 @@
 
 조작: 방향키 이동. (Space · QWER · F 는 전투에서만)
     · 출구에 닿으면 그 숲으로 넘어간다 (튜토리얼 숲의 북쪽 길 → 숲1, 튜토리얼이 끝난 뒤에만)
+    · 숲 끝 길목에는 상위 정령(보스)이 서 있다. 가까이 다가가면 대사 뒤 보스전 (구하기 전에는 다음 숲으로 못 감)
     · 수풀의 새 칸에 들어설 때마다 맵의 조우 확률로 타락한 정령 2~3마리를 만난다 (psd 4.3)
       → 수풀이 흔들리고 화면이 어두워지며 전투 맵으로. 전투가 끝나면 조우한 자리로 돌아온다
 튜토리얼이 진행 중이면 tutorial 이 연출을 맡고, 토리를 맵에 세워 둔다.
 """
+import math
 import random
 import sys
 
@@ -24,7 +26,8 @@ import world
 from camera import Camera
 from collision import separate
 from config import (FADE_TIME, FIELD_ENTRY, TUTORIAL, TUTORIAL_TORI_LEVEL, FIELD_FEET_OFFSET,
-                    ENCOUNTERS, ENCOUNTER_COOLDOWN)
+                    ENCOUNTERS, ENCOUNTER_COOLDOWN, BOSSES, BOSS_TRIGGER_RADIUS, BOSS_TALK_TIME)
+from cutscene import bubble
 from field_map import FieldMap
 from moa import DIR_KEYS
 from spirit import Spirit, SPIRITS
@@ -35,6 +38,9 @@ field_map = None
 camera = None
 moa = None
 enemy = None              # 튜토리얼의 토리 (숲에 서 있는 정령). 없으면 None
+boss = None               # 숲 끝 길목의 상위 정령. 없으면 None
+boss_inside = False       # 모아가 보스 범위 안에 있는지 (밖 → 안으로 들어설 때만 보스전)
+boss_talk = None          # 보스전 직전 말풍선 대사
 cur_bush = None
 on_exit = None
 safe_time = 0.0           # 이 시간 동안은 조우하지 않음 (전투에서 막 돌아왔을 때)
@@ -44,6 +50,7 @@ notice_text, notice_time = '', 0.0
 
 def init():
     global field_map, camera, moa, enemy, cur_bush, on_exit, safe_time, encounter_time
+    global boss, boss_inside, boss_talk
     field_map = FieldMap(world.current_field)
     camera = Camera(field_map.w, field_map.h)
     pos = world.field_return or FIELD_ENTRY.get(world.current_field, field_map.start)
@@ -65,12 +72,56 @@ def init():
             tutorial.start_intro(me)          # 숲에서 토리가 타락해 가는 연출
         else:
             tutorial.attach_field(me)         # 전투에서 돌아옴 → 마무리 / 이미 끝남
+    place_boss()
+    boss_talk = None
+    if world.saved_notice:
+        notice(world.saved_notice, 4.0)
+        world.saved_notice = None
     if world.defeated:
         notice('쓰러졌다… 조우한 자리에서 다시 시작한다 (HP 절반)', 3.0)
     world.defeated = False
     world.encounter = None
     camera.follow(*camera_target())
     fade.in_(FADE_TIME)
+
+
+def place_boss():
+    """숲 끝 길목에 상위 정령을 세운다. 이미 구했으면 원래 색으로 길옆에 비켜서 있다."""
+    global boss, boss_inside
+    boss, boss_inside = None, False
+    info = BOSSES.get(field_map.name)
+    if not info or not field_map.boss_pos:
+        return
+    x, y = field_map.boss_pos
+    boss = Spirit(info['kind'], info['level'], x, y, field_map, moa)
+    boss.hold_on()
+    boss.look_toward(moa.x, moa.y)
+    if info['kind'] in world.cleared:
+        boss.y += 110                                            # 길을 비켜 줌 (길 위쪽 풀밭)
+        boss.show_pure(True)
+        boss.pure_sprite.play('joy', boss.face)
+    boss_inside = near_boss()                                    # 범위 안에서 돌아왔으면 다시 나갔다 와야 보스전
+
+
+def boss_blocking():
+    return boss is not None and boss.kind not in world.cleared
+
+
+def near_boss():
+    return boss_blocking() and math.hypot(moa.x - boss.x, moa.y - boss.y) < BOSS_TRIGGER_RADIUS
+
+
+def start_boss():
+    """보스 범위에 들어섬: 멈추고 대사 → 화면이 어두워지며 보스전."""
+    global encounter_time, boss_talk
+    info = BOSSES[field_map.name]
+    world.encounter = dict(battle_map=info['battle_map'], spirits=[(info['kind'], info['level'])])
+    moa.held.clear()
+    if moa.state == 'move':
+        moa.stop()
+    boss.look_toward(moa.x, moa.y)
+    boss_talk = info['line']
+    encounter_time = BOSS_TALK_TIME
 
 
 def finish():
@@ -117,6 +168,8 @@ def handle_events():
 
 
 def camera_target():
+    if boss_talk and boss:                                       # 보스 대사: 모아와 보스 사이를 비춤
+        return (moa.x + boss.x) / 2, (moa.y + boss.y) / 2 + 40
     return tutorial.camera_target() if tutorial.locked() else (moa.x, moa.y)
 
 
@@ -126,10 +179,11 @@ def update(dt):
         moa.update(dt)
     else:
         moa.sprite.update(dt)                                    # 조우 중: 제자리에 멈춤
-    if enemy:
-        enemy.update(dt)
-        separate(moa, enemy, b_fixed=True)                       # 토리는 밀리지 않음
-        moa.x, moa.y = field_map.clamp(moa.x, moa.y, moa.radius)
+    for npc in (enemy, boss):
+        if npc:
+            npc.update(dt)
+            separate(moa, npc, b_fixed=True)                     # 토리·보스는 밀리지 않음
+            moa.x, moa.y = field_map.clamp(moa.x, moa.y, moa.radius)
     field_map.update(dt)
     safe_time = max(0.0, safe_time - dt)
     update_field_events(dt)
@@ -142,13 +196,20 @@ def update(dt):
 
 def update_field_events(dt):
     """수풀 흔들기·조우, 열매 먹기, 출구."""
-    global cur_bush, on_exit, encounter_time
+    global cur_bush, on_exit, encounter_time, boss_inside
     if encounter_time is not None:                               # 수풀이 흔들리는 중 → 시간이 되면 전투로
         encounter_time -= dt
         if encounter_time <= 0 and not fade.busy():
             encounter_time = 0.0
             go_battle()
         return
+
+    inside = near_boss()
+    if inside and not boss_inside and not tutorial.running() and not fade.busy():
+        boss_inside = True
+        start_boss()
+        return
+    boss_inside = inside
 
     bush = field_map.bush_at(moa.x, moa.y)
     if bush is not cur_bush and bush is not None:                # 수풀의 새 칸에 들어섬
@@ -204,6 +265,9 @@ def use_exit(ex):
     target = ex['to']
     if tutorial.running():
         return                                                   # 튜토리얼 중에는 나갈 수 없음
+    if boss_blocking():
+        notice(f'{boss.name}가 길을 막고 있다')
+        return
     if not map_exists(target):
         notice(f'이 길은 {target} 로 이어진다. (아직 준비 중)')
         return
@@ -220,12 +284,15 @@ def map_exists(name):
 
 def draw():
     field_map.draw_background(camera)
-    things = list(field_map.objects()) + [moa] + ([enemy] if enemy else [])
+    things = list(field_map.objects()) + [moa] + [npc for npc in (enemy, boss) if npc]
     for obj in sorted(things, key=sort_y, reverse=True):         # 화면 위쪽(뒤)부터
         obj.draw(camera)
     combat.draw(camera)
     field_map.draw_foreground(camera)
     tutorial.draw_world(camera)
+    if boss_talk and boss:
+        sx, sy = camera.to_screen(boss.x, boss.y)
+        bubble(sx, sy + 90, boss_talk)
     if tutorial.locked():
         tutorial.draw_overlay()
     else:
@@ -243,7 +310,7 @@ def draw():
 
 def sort_y(obj):
     """그리는 순서: 캐릭터는 발밑, 수풀은 아래쪽, 열매는 가운데."""
-    if obj is moa or obj is enemy:
+    if obj is moa or obj is enemy or obj is boss:
         return obj.y - FIELD_FEET_OFFSET
     return obj.y
 

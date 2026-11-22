@@ -9,6 +9,8 @@ current_field = START_FIELD  # 지금 있는(돌아갈) 숲 맵 이름
 field_return = None          # 전투에서 돌아올 숲 위치 (x, y). None 이면 맵의 시작 위치
 encounter = None             # 지금 전투의 정보 dict(battle_map, spirits=[(종류, 레벨), ...]). 튜토리얼은 None
 defeated = False             # 전투에서 쓰러져 돌아왔는지 (숲에서 알림용)
+cleared = set()              # 구한 보스 (정령 종류). 구하면 그 숲의 다음 길이 열린다
+saved_notice = None          # 보스를 구하고 숲으로 돌아왔을 때 띄울 알림
 
 
 def get_moa(area, x, y):

@@ -86,3 +86,19 @@ def draw_enemy(enemy, camera):
     ui.text(sx - 82, sy + 74, f'Lv{enemy.level}', 14, (255, 230, 120))
     if enemy.state == 'faint':
         ui.text(sx - 16, sy + 88, '기절', 14, (255, 230, 120))
+
+
+def draw_boss(boss):
+    """보스: 화면 위 가운데 큰 HP 바 + 이름 · 레벨 + 지금 패턴 (즉사 패턴 / 광폭화 남은 시간)."""
+    w, h = 520, 16
+    x, y = (SCREEN_W - w) / 2, 668
+    ui.text(x, y + 30, f'{boss.name}  Lv{boss.level}', 18, (255, 230, 120))
+    bar(x, y, w, h, boss.hp / boss.max_hp, (230, 80, 80))
+    for k in (0.5, 0.1):                          # 패턴이 시작되는 HP 표시
+        draw_rectangle(x + w * k, y - 3, x + w * k + 1, y + h + 3, 255, 255, 255, filled=True)
+    if boss.state == 'faint':
+        ui.text(x + w + 12, y + 8, '기절', 16, (255, 230, 120))
+    pattern = boss.pattern_text() if hasattr(boss, 'pattern_text') else None
+    if pattern:
+        label, color = pattern
+        ui.text(x + w - 150, y + 30, label, 16, color)

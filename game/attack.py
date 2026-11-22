@@ -23,6 +23,7 @@ class Attack:
         self.already_hit = set()
         self.cancelled = False
         self.on_start = None            # 판정이 켜지는 순간 한 번 부르는 함수
+        self.lethal = False             # True 면 맞은 대상은 즉사 (방어 무시)
         self._started = False
 
     @property

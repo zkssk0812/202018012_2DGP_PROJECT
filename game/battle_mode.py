@@ -29,9 +29,10 @@ from battle_map import BattleMap
 from camera import Camera
 from collision import separate
 from config import (FAINT_RESTART_TIME, ABSORB_TIME, FADE_TIME, BATTLE_END_DELAY,
-                    TUTORIAL_BATTLE_MAP, TUTORIAL_TORI_LEVEL)
+                    TUTORIAL_BATTLE_MAP, TUTORIAL_TORI_LEVEL, BOSS_REWARD_LEVEL)
 from essence import Essence
-from spirit import Spirit
+from boss import Sylph
+from spirit import Spirit, SPIRITS
 from stats import exp_reward
 
 battle_map = None
@@ -65,6 +66,8 @@ def start():
     ending = False
     if tutorial.active and tutorial.phase == 'to_battle':
         tutorial.attach_battle(sys.modules[__name__])
+    elif enemies[0].boss:
+        notice(f'바람의 상위 정령 {enemies[0].name}!', 2.5)
     elif len(enemies) > 1:
         notice(f'타락한 정령 {len(enemies)}마리가 나타났다!')
     camera.follow(*camera_target())
@@ -80,8 +83,10 @@ def spawn(spirit_list):
     for i, (kind, level) in enumerate(spirit_list):
         a = (i - (n - 1) / 2) * 0.9                          # 모아 쪽을 향한 부채꼴 모양으로
         x, y = battle_map.clamp(ex + math.cos(a) * 120 - 120, ey + math.sin(a) * 260, 40)
-        s = Spirit(kind, level, x, y, battle_map, moa)
+        cls = Sylph if SPIRITS[kind].get('boss') else Spirit
+        s = cls(kind, level, x, y, battle_map, moa)
         s.on_dot_tick = combat.dot_tick_fx
+        s.notify = notice
         enemies.append(s)
     for s in enemies:
         s.allies = enemies                                   # 공격 차례 나누기 · 포위에 씀
@@ -220,6 +225,11 @@ def update_essences(dt):
 def reward(spirit):
     """쓰러뜨린 정령의 기운을 흡수했을 때: 경험치 + 기술."""
     moa.gain_exp(exp_reward(spirit.level))
+    if spirit.boss:                               # 상위 정령을 구하면: 적어도 Lv10 (E 칸 열림), 다음 길이 열림
+        while moa.level < BOSS_REWARD_LEVEL:
+            moa.gain_exp(moa.exp_needed - moa.exp)
+        world.cleared.add(spirit.kind)
+        world.saved_notice = f'{spirit.name}를 구했다! 숲 끝의 길이 열렸다'
     give_skill(spirit)
 
 
@@ -279,7 +289,8 @@ def draw():
     battle_map.draw_background(camera)
     for e in essences:
         e.draw_ground(camera)
-    for obj in sorted([moa] + enemies, key=lambda o: -o.y):     # 화면 위쪽(뒤)부터
+    storms = [st for s in enemies for st in getattr(s, 'storms', ())]
+    for obj in sorted([moa] + enemies + storms, key=lambda o: -getattr(o, 'sort_y', o.y)):   # 화면 위쪽(뒤)부터
         obj.draw(camera)
     for e in essences:
         e.draw(camera)
@@ -290,7 +301,10 @@ def draw():
         tutorial.draw_overlay()
     else:
         for s in enemies:
-            if s.state not in ('essence_out', 'purified', 'hold'):   # 흡수·연출 중에는 HP 바를 숨김
+            if s.boss:
+                if s.state not in ('essence_out', 'purified'):
+                    hud.draw_boss(s)                                 # 보스는 화면 위 큰 HP 바
+            elif s.state not in ('essence_out', 'purified', 'hold'):   # 흡수·연출 중에는 HP 바를 숨김
                 hud.draw_enemy(s, camera)
         if can_absorb():
             hud.draw_absorb_prompt(moa, camera)

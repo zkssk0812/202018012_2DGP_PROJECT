@@ -61,6 +61,12 @@ def update(dt, fighters):
 
 def hit(atk, target):
     owner = atk.owner
+    if getattr(atk, 'lethal', False):                # 즉사 공격 (실프 즉사 패턴): 방어도 무시하고 HP 0
+        target.guard_time = 0.0
+        target.apply_damage(target.hp)
+        add_effect(Effect(owner.fx_owner, atk.hit_fx, target.x, target.y))
+        atk.on_hit(target)
+        return
     if atk.power:
         sx, sy = atk.source()
         target.take_hit(damage(atk.power, owner.attack, target.defense), sx, sy)

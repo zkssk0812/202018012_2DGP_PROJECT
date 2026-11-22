@@ -97,6 +97,34 @@ SPIRIT_LOW_HP = 0.3           # HP 30% 이하면 방어 기술
 RANGED_KEEP = (260, 520)      # 원거리형은 이 거리 사이를 유지 (가까우면 물러나고 멀면 다가감)
 SPIRIT_FIRST_DELAY = (0.8, 2.0)   # 전투가 시작되고 첫 기술까지 (여러 마리가 한꺼번에 때리지 않게 흩어 놓음)
 
+# ── 보스 · 실프 (psd 6.3) ── 숲1 → 숲2 길목을 막는다
+BOSSES = {
+    # 숲 이름: 길목을 막는 상위 정령 (자리는 숲 맵 json 의 boss.pos)
+    'forest1': dict(kind='sylph', level=9, battle_map='battle_forest1', line='더 들어가면 안 돼. 돌아가!'),
+}
+BOSS_TRIGGER_RADIUS = 260     # 숲에서 이 거리 안으로 들어서면 보스전
+BOSS_TALK_TIME = 1.6          # 보스 대사를 보여 주고 전투로 넘어가기까지
+BOSS_REWARD_LEVEL = 10        # 보스를 구하면 적어도 이 레벨이 된다 (E 칸 열림)
+# 즉사 패턴: HP 50% 이하가 되면 한 번. 10초 동안 실프는 무적, 전방향 즉사 바람 칼날을 쏜다
+TEMPEST_HP = 0.5
+TEMPEST_TIME = 10.0
+TEMPEST_WAVES = (1.2, 2.6, 4.0, 5.4, 6.8, 8.2)   # 칼날 예고가 시작되는 시각 (패턴 시작 기준)
+TEMPEST_WARN = 0.8            # 예고선이 뜨고 칼날이 나가기까지
+TEMPEST_BLADES = 8            # 한 번에 쏘는 칼날 수 (전방향, 웨이브마다 반 칸씩 돌아감)
+TEMPEST_BLADE_LENGTH = 2400   # 맵 끝까지 닿는 길이
+TEMPEST_BLADE_R = 30
+# 폭풍: 즉사 패턴 동안 실프 둘레를 돈다. 닿으면 2초간 띄워 올려 무적, 내려오면 그 폭풍은 사라진다
+STORM_COUNT = 3
+STORM_RADIUS = 34             # 닿는 판정 반지름
+STORM_ORBIT = (240, 460)      # 실프에서 떨어진 거리 (이 사이를 오간다)
+STORM_SPEED = 0.55            # 도는 빠르기 (rad/s)
+STORM_LIFT_TIME = 2.0
+STORM_LIFT_HEIGHT = 70        # 띄워 올라가는 높이 (그림만)
+# 광폭화: HP 10% 이하가 되면 한 번, 20초 동안 기술 쿨다운 50% 감소
+RAGE_HP = 0.1
+RAGE_TIME = 20.0
+RAGE_COOLDOWN_RATE = 0.5
+
 # 적이 맞았을 때: 짧게 밀려나고 하던 공격(예고 중)은 취소. 연속 주먹이 다 맞도록 적은 무적 없음
 ENEMY_HURT_TIME = 0.15
 ENEMY_KNOCKBACK_SPEED = 300

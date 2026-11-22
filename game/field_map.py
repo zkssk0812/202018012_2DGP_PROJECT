@@ -109,6 +109,7 @@ class FieldMap:
         self.walls = info['walls']
         self.start = tuple(info['start'])
         self.tori_pos = tuple(info['tori']['pos']) if 'tori' in info else None
+        self.boss_pos = tuple(info['boss']['pos']) if 'boss' in info else None   # 숲 끝의 상위 정령 자리
         self.exits = info.get('exits', [])
         self.bg = resources.image('forest_maps', info['background'])
         self.fg = resources.image('forest_maps', info['foreground'])

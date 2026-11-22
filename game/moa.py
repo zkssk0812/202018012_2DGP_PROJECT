@@ -7,6 +7,7 @@
     idle/move ──cast_start──▶ cast ──cast_end──▶ idle           (QWER 기술, 쓰는 동안 못 움직임)
     idle/move/cast/hurt ──hit──▶ hurt ──recover──▶ idle          (넉백 뒤 0.5초 무적)
     idle/move ──absorb_start──▶ absorb ──absorb_end──▶ idle    (F: 검은 기운 흡수, psd 4.1)
+    (싸우는 상태) ──lift──▶ lifted ──land──▶ idle                 (실프의 폭풍에 휘말려 2초 떠오름, 무적·조작 불가)
     (어느 상태든) ──faint──▶ faint                                (HP 0, 전투 모드가 다시 시작시킴)
 x, y 는 몸 원의 중심(맵 좌표)이다.
 """
@@ -21,7 +22,8 @@ from config import (MOA_SPEED, MOA_BODY_RADIUS, MOA_SPRITE_OFFSET_Y,
                     DODGE_TIME, DODGE_SPEED, DODGE_COOLDOWN,
                     HURT_TIME, KNOCKBACK_SPEED, HIT_INVINCIBLE,
                     MOA_BASE_STATS, MOA_LEVEL, MOA_MAX_LEVEL, MOA_SKILL_WINDUP,
-                    SLOT_KEYS, SLOT_UNLOCK_LEVELS, MOA_START_SKILLS, ABSORB_TIME)
+                    SLOT_KEYS, SLOT_UNLOCK_LEVELS, MOA_START_SKILLS, ABSORB_TIME,
+                    STORM_LIFT_TIME, STORM_LIFT_HEIGHT)
 from fighter import Fighter
 from sprite import SheetSprite
 from stats import stats_at, exp_to_next
@@ -54,7 +56,7 @@ class Slot:
 
 
 class Moa(Fighter):
-    states = ['idle', 'move', 'dodge', 'cast', 'hurt', 'faint', 'absorb']
+    states = ['idle', 'move', 'dodge', 'cast', 'hurt', 'faint', 'absorb', 'lifted']
 
     def __init__(self, x, y, battle_map):
         self.x, self.y = x, y
@@ -82,6 +84,7 @@ class Moa(Fighter):
         self.casting_slot = None
         self.absorb_from = None        # 흡수하는 대상 (검은 기운이 나온 정령)
         self.cast_info = None
+        self.lift_storm = None         # 나를 띄워 올린 폭풍 (lifted 동안 그 자리에 붙어 있음)
 
         self.machine = Machine(model=self, states=Moa.states, initial='idle',
                                ignore_invalid_triggers=True, after_state_change='reset_state_time')
@@ -93,7 +96,9 @@ class Moa(Fighter):
         self.machine.add_transition('cast_end', 'cast', 'idle')
         self.machine.add_transition('hit', ['idle', 'move', 'cast', 'hurt'], 'hurt')
         self.machine.add_transition('recover', 'hurt', 'idle')
-        self.machine.add_transition('faint', ['idle', 'move', 'dodge', 'cast', 'hurt', 'absorb'], 'faint')
+        self.machine.add_transition('faint', ['idle', 'move', 'dodge', 'cast', 'hurt', 'absorb', 'lifted'], 'faint')
+        self.machine.add_transition('lift', ['idle', 'move', 'dodge', 'cast', 'hurt', 'absorb'], 'lifted')
+        self.machine.add_transition('land', 'lifted', 'idle')
         self.machine.add_transition('absorb_start', ['idle', 'move'], 'absorb')
         self.machine.add_transition('absorb_end', 'absorb', 'idle')
         self.on_enter_idle()
@@ -106,7 +111,7 @@ class Moa(Fighter):
 
     @property
     def is_invincible(self):
-        return self.invincible > 0 or self.state == 'faint'
+        return self.invincible > 0 or self.state in ('faint', 'lifted')
 
     def aim_angle(self):
         return math.atan2(self.dir_y, self.dir_x)
@@ -302,6 +307,43 @@ class Moa(Fighter):
         self.cast_info = None
         self.sprite.play('hurt', self.face, restart=True)
 
+    # ── 폭풍에 휘말림 (실프 즉사 패턴) ─────────────────
+    def lift_by(self, storm):
+        """폭풍에 닿음: 2초 동안 떠올라 무적. 조작은 받지 않는다."""
+        if self.state in ('idle', 'move', 'dodge', 'cast', 'hurt', 'absorb'):
+            self.lift_storm = storm
+            self.lift()
+            return True
+        return False
+
+    def on_enter_lifted(self):
+        self.cast_info = None
+        self.absorb_from = None
+        self.cancel_pending()
+        self.sprite.play('idle', self.face)
+
+    def on_exit_lifted(self):
+        self.lift_storm = None
+        self.invincible = max(self.invincible, 0.3)     # 내려오자마자 맞지 않게 잠깐
+
+    def lift_height(self):
+        """지금 떠 있는 높이 (그림만). 0.35초 동안 올라가고, 마지막 0.35초 동안 내려온다."""
+        if self.state != 'lifted':
+            return 0.0
+        t = self.state_time
+        k = min(1.0, t / 0.35, max(0.0, STORM_LIFT_TIME - t) / 0.35)
+        bob = math.sin(t * 6) * 6 if 0.35 < t < STORM_LIFT_TIME - 0.35 else 0
+        return STORM_LIFT_HEIGHT * k + bob
+
+    def update_lifted(self, dt):
+        if self.lift_storm:
+            self.x, self.y = self.lift_storm.x, self.lift_storm.y
+        spin = ('down', 'right', 'up', 'left')[int(self.state_time / 0.09) % 4]   # 빙글빙글 돈다
+        self.sprite.play('idle', spin)
+        if self.state_time >= STORM_LIFT_TIME:
+            self.face = 'down'
+            self.land()
+
     def on_enter_faint(self):
         self.cast_info = None
         self.sprite.play('faint', self.face, restart=True)
@@ -368,4 +410,4 @@ class Moa(Fighter):
         if self.state in ('idle', 'move') and self.invincible > 0 and int(self.invincible * 16) % 2:
             return
         sx, sy = camera.to_screen(self.x, self.y)
-        self.sprite.draw(sx, sy + MOA_SPRITE_OFFSET_Y)
+        self.sprite.draw(sx, sy + MOA_SPRITE_OFFSET_Y + self.lift_height())

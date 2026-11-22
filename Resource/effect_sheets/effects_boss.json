@@ -1,0 +1,53 @@
+{
+  "image": "effects_boss.png",
+  "sheet_w": 2048,
+  "sheet_h": 552,
+  "note": "effects_monster 와 같은 형식. 한 줄 = 이펙트 하나. y는 이미지 맨 위 기준. origin = 칸 왼쪽 위 기준 중심 위치(y 아래로). make_effects_boss.py 로 만든 그림.",
+  "effects": {
+    "storm": {
+      "x": 0,
+      "y": 0,
+      "label": "폭풍",
+      "use": "실프 즉사 패턴 · 닿으면 2초간 띄워 올림 (무적)",
+      "cell_w": 192,
+      "cell_h": 256,
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "origin": [
+        96,
+        238
+      ]
+    },
+    "rage_aura": {
+      "x": 0,
+      "y": 256,
+      "label": "광폭화 오라",
+      "use": "실프 광폭화 · 발밑 고리",
+      "cell_w": 256,
+      "cell_h": 256,
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "origin": [
+        128,
+        128
+      ]
+    },
+    "blade_warn": {
+      "x": 0,
+      "y": 512,
+      "label": "즉사 칼날 예고선",
+      "use": "실프 즉사 패턴 · 칼날 방향으로 늘여 그림",
+      "cell_w": 256,
+      "cell_h": 40,
+      "frames": 4,
+      "fps": 12,
+      "loop": true,
+      "origin": [
+        0,
+        20
+      ]
+    }
+  }
+}
