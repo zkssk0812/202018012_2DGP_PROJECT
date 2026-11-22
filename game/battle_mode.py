@@ -229,7 +229,7 @@ def reward(spirit):
         while moa.level < BOSS_REWARD_LEVEL:
             moa.gain_exp(moa.exp_needed - moa.exp)
         world.cleared.add(spirit.kind)
-        world.saved_notice = f'{spirit.name}를 구했다! 숲 끝의 길이 열렸다'
+        world.arrive_notice = f'{spirit.name}를 구했다! 숲 끝의 길이 열렸다'
     give_skill(spirit)
 
 

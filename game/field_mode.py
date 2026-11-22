@@ -26,7 +26,8 @@ import world
 from camera import Camera
 from collision import separate
 from config import (FADE_TIME, FIELD_ENTRY, TUTORIAL, TUTORIAL_TORI_LEVEL, FIELD_FEET_OFFSET,
-                    ENCOUNTERS, ENCOUNTER_COOLDOWN, BOSSES, BOSS_TRIGGER_RADIUS, BOSS_TALK_TIME)
+                    ENCOUNTERS, ENCOUNTER_COOLDOWN, BOSSES, BOSS_TRIGGER_RADIUS, BOSS_TALK_TIME,
+                    BOSS_REWARD_LEVEL, ADMIN_WARP)
 from cutscene import bubble
 from field_map import FieldMap
 from moa import DIR_KEYS
@@ -74,9 +75,9 @@ def init():
             tutorial.attach_field(me)         # 전투에서 돌아옴 → 마무리 / 이미 끝남
     place_boss()
     boss_talk = None
-    if world.saved_notice:
-        notice(world.saved_notice, 4.0)
-        world.saved_notice = None
+    if world.arrive_notice:
+        notice(world.arrive_notice, 4.0)
+        world.arrive_notice = None
     if world.defeated:
         notice('쓰러졌다… 조우한 자리에서 다시 시작한다 (HP 절반)', 3.0)
     world.defeated = False
@@ -124,6 +125,23 @@ def start_boss():
     encounter_time = BOSS_TALK_TIME
 
 
+def admin_boss_warp():
+    """관리자 P (튜토리얼이 끝난 뒤): 바로 Lv10, 가시찌르기 · 이슬탄을 칸에 넣고, 실프 앞(범위 바로 밖)으로 이동."""
+    while moa.level < BOSS_REWARD_LEVEL:
+        moa.gain_exp(moa.exp_needed - moa.exp)
+    for skill_id in ADMIN_WARP['skills']:
+        if moa.learn(skill_id) == 'full':                        # 열린 칸이 꽉 찼으면 뒤쪽 칸부터 바꿈
+            opened = [i for i in range(len(moa.slots)) if moa.slot_open(i)
+                      and moa.slots[i].skill_id not in ADMIN_WARP['skills']]
+            moa.set_slot(opened[-1], skill_id)
+    moa.hp = moa.max_hp
+    world.current_field = ADMIN_WARP['field']
+    world.field_return = ADMIN_WARP['pos']
+    world.arrive_notice = '[관리자] Lv10 · 가시찌르기 · 이슬탄 — 위로 걸어가면 실프전'
+    me = sys.modules[__name__]
+    fade.out(FADE_TIME, lambda: game_framework.change_mode(me))
+
+
 def finish():
     combat.clear()
 
@@ -155,7 +173,10 @@ def handle_events():
         elif e.type == SDL_KEYDOWN and e.key == SDLK_ESCAPE:   # 임시: 일시정지 화면이 생기기 전까지는 종료
             game_framework.quit()
         elif e.type == SDL_KEYDOWN and e.key == SDLK_p and not fade.busy():
-            tutorial.skip_tutorial()                             # 튜토리얼 전체 건너뛰기
+            if tutorial.running():
+                tutorial.skip_tutorial()                         # 튜토리얼 전체 건너뛰기
+            elif admin.enabled and not tutorial.locked():
+                admin_boss_warp()                                # 관리자: Lv10 + 기술 + 실프 앞으로
         elif tutorial.locked() or fade.busy():                 # 연출·화면 전환 중: J 건너뛰기만
             if e.type == SDL_KEYDOWN and e.key == SDLK_j:
                 tutorial.skip()
