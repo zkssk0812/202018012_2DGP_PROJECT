@@ -43,6 +43,8 @@ moa = None
 enemy = None              # 튜토리얼의 토리 (숲에 서 있는 정령). 없으면 None
 boss = None               # 숲 끝 길목의 상위 정령. 없으면 None
 boss_inside = False       # 모아가 보스 범위 안에 있는지 (밖 → 안으로 들어설 때만 보스전)
+boss_step = 0.0           # 보스가 길을 비켜 주며 더 움직일 거리 (위로)
+BOSS_ASIDE = 110          # 구한 보스가 길을 비켜 서는 거리 (길 위쪽 풀밭)
 scene = None              # 숲에서 도는 이야기 연출 (Cutscene). 도는 동안 입력을 막고 J 로 건너뜀
 cur_bush = None
 on_exit = None
@@ -75,8 +77,8 @@ def init():
             tutorial.start_intro(me)          # 숲에서 토리가 타락해 가는 연출
         else:
             tutorial.attach_field(me)         # 전투에서 돌아옴 → 마무리 / 이미 끝남
-    place_boss()
     scene = None
+    place_boss()                                                 # (방금 구한 보스면 여기서 이야기 연출 시작)
     if world.arrive_notice:
         notice(world.arrive_notice, 4.0)
         world.arrive_notice = None
@@ -90,8 +92,8 @@ def init():
 
 def place_boss():
     """숲 끝 길목에 상위 정령을 세운다. 이미 구했으면 원래 색으로 길옆에 비켜서 있다."""
-    global boss, boss_inside
-    boss, boss_inside = None, False
+    global boss, boss_inside, boss_step
+    boss, boss_inside, boss_step = None, False, 0.0
     info = BOSSES.get(field_map.name)
     if not info or not field_map.boss_pos:
         return
@@ -100,10 +102,36 @@ def place_boss():
     boss.hold_on()
     boss.look_toward(moa.x, moa.y)
     if info['kind'] in world.cleared:
-        boss.y += 110                                            # 길을 비켜 줌 (길 위쪽 풀밭)
         boss.show_pure(True)
         boss.pure_sprite.play('joy', boss.face)
+        if world.boss_saved == info['kind']:                     # 방금 구함: 이야기를 나눈 뒤 길을 비켜 줌
+            world.boss_saved = None
+            play_after_story()
+        else:
+            boss.y += BOSS_ASIDE                                 # 이미 비켜 서 있음
     boss_inside = near_boss()                                    # 범위 안에서 돌아왔으면 다시 나갔다 와야 보스전
+
+
+def play_after_story():
+    """보스를 구하고 숲으로 돌아왔을 때: 원래 색의 보스와 이야기 → 길을 비켜 줌."""
+    face_boss()
+
+    def calm():
+        boss.pure_sprite.play('idle', boss.face)
+
+    def step_aside():
+        global boss_step
+        boss_step = BOSS_ASIDE
+        boss.pure_sprite.play('move', 'up')
+
+    def done():
+        global boss_step
+        if boss_step > 0:                                       # 건너뛰었으면 바로 제자리로
+            boss.y += boss_step
+            boss_step = 0.0
+        boss.pure_sprite.play('joy', 'down')
+
+    play_scene(story.BOSS_STORY[boss.kind]['after'], dict(calm=calm, step_aside=step_aside), on_end=done)
 
 
 def boss_blocking():
@@ -146,6 +174,17 @@ def play_scene(script, actions, on_end):
     moa.held.clear()
     if moa.state == 'move':
         moa.stop()
+
+
+def update_boss_step(dt):
+    """구한 보스가 길 위쪽으로 천천히 비켜 선다."""
+    global boss_step
+    if boss and boss_step > 0:
+        d = min(boss_step, 120 * dt)
+        boss.y += d
+        boss_step -= d
+        if boss_step <= 0 and boss.pure_sprite:
+            boss.pure_sprite.play('joy', 'down')
 
 
 def scene_locked():
@@ -231,6 +270,7 @@ def update(dt):
         moa.sprite.update(dt)                                    # 조우·연출 중: 제자리에 멈춤
     if scene_locked():
         scene.update(dt)
+    update_boss_step(dt)
     for npc in (enemy, boss):
         if npc:
             npc.update(dt)
