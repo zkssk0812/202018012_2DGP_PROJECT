@@ -12,7 +12,7 @@ import random
 import sys
 
 from pico2d import get_events
-from sdl2 import SDL_QUIT, SDL_KEYDOWN, SDL_KEYUP, SDLK_ESCAPE, SDLK_t, SDLK_u, SDLK_j, SDLK_p
+from sdl2 import SDL_QUIT, SDL_KEYDOWN, SDL_KEYUP, SDLK_ESCAPE, SDLK_t, SDLK_u, SDLK_j, SDLK_p, SDLK_i
 
 import admin
 import combat
@@ -254,6 +254,8 @@ def handle_events():
                     scene.skip()
         elif e.type == SDL_KEYDOWN and e.key == SDLK_t:
             admin.toggle()
+        elif e.type == SDL_KEYDOWN and e.key == SDLK_i:
+            admin.toggle_god()                                   # 관리자: 무적 켜기/끄기
         elif e.type == SDL_KEYDOWN and e.key == SDLK_u:
             admin.toggle_hurtbox()
         elif e.type in (SDL_KEYDOWN, SDL_KEYUP) and e.key in DIR_KEYS:

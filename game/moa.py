@@ -17,6 +17,7 @@ from sdl2 import (SDL_KEYDOWN, SDL_KEYUP, SDLK_LEFT, SDLK_RIGHT, SDLK_UP, SDLK_D
                   SDLK_q, SDLK_w, SDLK_e, SDLK_r)
 from transitions import Machine
 
+import admin
 import skills
 from config import (MOA_SPEED, MOA_BODY_RADIUS, MOA_SPRITE_OFFSET_Y,
                     DODGE_TIME, DODGE_SPEED, DODGE_COOLDOWN,
@@ -111,7 +112,12 @@ class Moa(Fighter):
 
     @property
     def is_invincible(self):
-        return self.invincible > 0 or self.state in ('faint', 'lifted')
+        return self.invincible > 0 or self.state in ('faint', 'lifted') or admin.is_god()
+
+    def apply_damage(self, amount):
+        if admin.is_god():                  # 관리자 무적: 지속 피해 · 즉사도 받지 않음
+            return 0
+        return super().apply_damage(amount)
 
     def aim_angle(self):
         return math.atan2(self.dir_y, self.dir_x)
