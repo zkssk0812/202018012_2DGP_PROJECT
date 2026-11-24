@@ -300,6 +300,9 @@ def draw():
         e.draw(camera)
     combat.draw(camera)
     battle_map.draw_foreground(camera)
+    for s in enemies:
+        if hasattr(s, 'draw_top'):                # 보스: 말풍선 · 화면 섬광
+            s.draw_top(camera)
     tutorial.draw_world(camera)
     if tutorial.locked():                         # 연출 중에는 UI 를 숨기고 위아래 검은 띠
         tutorial.draw_overlay()

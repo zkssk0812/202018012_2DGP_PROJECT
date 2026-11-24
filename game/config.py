@@ -108,10 +108,13 @@ BOSSES = {
 ADMIN_WARP = dict(field='forest1', pos=(3730, 2470), skills=('thorn_stab', 'dew_shot'))
 BOSS_TRIGGER_RADIUS = 260     # 숲에서 이 거리 안으로 들어서면 보스전
 BOSS_REWARD_LEVEL = 10        # 보스를 구하면 적어도 이 레벨이 된다 (E 칸 열림)
-# 즉사 패턴: HP 50% 이하가 되면 한 번. 10초 동안 실프는 무적, 전방향 즉사 바람 칼날을 쏜다
+# 즉사 패턴: HP 50% 이하가 되면 한 번. 실프는 무적, 전방위 즉사 바람 칼날 3번 → "끝이다" → 맵 전체 즉사 폭발
+#   마지막 폭발은 폭풍 위에 떠 있어야만 산다
 TEMPEST_HP = 0.5
-TEMPEST_TIME = 10.0
-TEMPEST_WAVES = (1.2, 2.6, 4.0, 5.4, 6.8, 8.2)   # 칼날 예고가 시작되는 시각 (패턴 시작 기준)
+TEMPEST_WAVES = (1.0, 2.6, 4.2)  # 칼날 예고가 시작되는 시각 (패턴 시작 기준)
+TEMPEST_FINAL_AT = 5.6        # "끝이다" — 힘을 모으기 시작
+TEMPEST_FINAL_CHARGE = 2.2    # 힘을 모으는 시간 → 맵 전체 즉사 폭발
+TEMPEST_TIME = 9.2            # 패턴이 끝나는 시각
 TEMPEST_WARN = 0.8            # 예고선이 뜨고 칼날이 나가기까지
 TEMPEST_BLADES = 8            # 한 번에 쏘는 칼날 수 (전방향, 웨이브마다 반 칸씩 돌아감)
 TEMPEST_BLADE_LENGTH = 2400   # 맵 끝까지 닿는 길이

@@ -86,6 +86,7 @@ class Moa(Fighter):
         self.absorb_from = None        # 흡수하는 대상 (검은 기운이 나온 정령)
         self.cast_info = None
         self.lift_storm = None         # 나를 띄워 올린 폭풍 (lifted 동안 그 자리에 붙어 있음)
+        self.lift_end = 0.0            # 폭풍에서 내려오는 시각 (lifted 상태 시간 기준)
 
         self.machine = Machine(model=self, states=Moa.states, initial='idle',
                                ignore_invalid_triggers=True, after_state_change='reset_state_time')
@@ -323,6 +324,7 @@ class Moa(Fighter):
         return False
 
     def on_enter_lifted(self):
+        self.lift_end = STORM_LIFT_TIME                  # 내려오는 시각 (실프 마지막 폭발 때는 늘어남)
         self.cast_info = None
         self.absorb_from = None
         self.cancel_pending()
@@ -337,8 +339,8 @@ class Moa(Fighter):
         if self.state != 'lifted':
             return 0.0
         t = self.state_time
-        k = min(1.0, t / 0.35, max(0.0, STORM_LIFT_TIME - t) / 0.35)
-        bob = math.sin(t * 6) * 6 if 0.35 < t < STORM_LIFT_TIME - 0.35 else 0
+        k = min(1.0, t / 0.35, max(0.0, self.lift_end - t) / 0.35)
+        bob = math.sin(t * 6) * 6 if 0.35 < t < self.lift_end - 0.35 else 0
         return STORM_LIFT_HEIGHT * k + bob
 
     def update_lifted(self, dt):
@@ -346,7 +348,7 @@ class Moa(Fighter):
             self.x, self.y = self.lift_storm.x, self.lift_storm.y
         spin = ('down', 'right', 'up', 'left')[int(self.state_time / 0.09) % 4]   # 빙글빙글 돈다
         self.sprite.play('idle', spin)
-        if self.state_time >= STORM_LIFT_TIME:
+        if self.state_time >= self.lift_end:
             self.face = 'down'
             self.land()
 
