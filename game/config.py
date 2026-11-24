@@ -102,6 +102,7 @@ SPIRIT_FIRST_DELAY = (0.8, 2.0)   # 전투가 시작되고 첫 기술까지 (여
 BOSSES = {
     # 숲 이름: 길목을 막는 상위 정령 (자리는 숲 맵 json 의 boss.pos)
     'forest1': dict(kind='sylph', level=9, battle_map='battle_forest1'),
+    'forest2': dict(kind='gnome', level=14, battle_map='battle_forest2', fight=False),   # 노움: 아직 배치만 (전투 없음)
 }
 # 관리자 P (튜토리얼이 끝난 뒤): Lv10 + 기술 + 실프 앞 (보스 범위 바로 밖, 위로 걸으면 보스전)
 ADMIN_WARP = dict(field='forest1', pos=(3730, 2470), skills=('thorn_stab', 'dew_shot'))

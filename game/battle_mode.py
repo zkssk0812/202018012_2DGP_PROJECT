@@ -32,7 +32,9 @@ from config import (FAINT_RESTART_TIME, ABSORB_TIME, FADE_TIME, BATTLE_END_DELAY
                     TUTORIAL_BATTLE_MAP, TUTORIAL_TORI_LEVEL, BOSS_REWARD_LEVEL)
 from essence import Essence
 from boss import Sylph
-from spirit import Spirit, SPIRITS
+from spirit import Spirit
+
+BOSS_CLASSES = {'sylph': Sylph}
 from stats import exp_reward
 
 battle_map = None
@@ -83,7 +85,7 @@ def spawn(spirit_list):
     for i, (kind, level) in enumerate(spirit_list):
         a = (i - (n - 1) / 2) * 0.9                          # 모아 쪽을 향한 부채꼴 모양으로
         x, y = battle_map.clamp(ex + math.cos(a) * 120 - 120, ey + math.sin(a) * 260, 40)
-        cls = Sylph if SPIRITS[kind].get('boss') else Spirit
+        cls = BOSS_CLASSES.get(kind, Spirit)                 # 특별 패턴이 있는 보스는 전용 클래스
         s = cls(kind, level, x, y, battle_map, moa)
         s.on_dot_tick = combat.dot_tick_fx
         s.notify = notice

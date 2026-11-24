@@ -25,6 +25,14 @@ def eul(word):
     return word + '을(를)'
 
 
+def i_ga(word):
+    """받침이 있으면 '이', 없으면 '가' 를 붙인다. 예) 노움이, 실프가"""
+    last = word[-1]
+    if '가' <= last <= '힣':
+        return word + ('이' if (ord(last) - 0xAC00) % 28 else '가')
+    return word + '이(가)'
+
+
 def text(x, y, s, size=16, color=(255, 255, 255)):
     f = font(size)
     if f:

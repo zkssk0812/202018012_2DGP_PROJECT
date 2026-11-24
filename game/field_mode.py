@@ -22,6 +22,7 @@ import game_framework
 import hud
 import resources
 import tutorial
+import ui
 import world
 from camera import Camera
 from collision import separate
@@ -139,7 +140,10 @@ def boss_blocking():
 
 
 def near_boss():
-    return boss_blocking() and math.hypot(moa.x - boss.x, moa.y - boss.y) < BOSS_TRIGGER_RADIUS
+    """보스전을 시작할 거리 안인지. 전투가 아직 없는 보스(fight=False)는 서 있기만 한다."""
+    if not boss_blocking() or not BOSSES[field_map.name].get('fight', True):
+        return False
+    return math.hypot(moa.x - boss.x, moa.y - boss.y) < BOSS_TRIGGER_RADIUS
 
 
 def start_boss():
@@ -360,7 +364,7 @@ def use_exit(ex):
     if tutorial.running():
         return                                                   # 튜토리얼 중에는 나갈 수 없음
     if boss_blocking():
-        notice(f'{boss.name}가 길을 막고 있다')
+        notice(f'{ui.i_ga(boss.name)} 길을 막고 있다')
         return
     if not map_exists(target):
         notice(f'이 길은 {target} 로 이어진다. (아직 준비 중)')

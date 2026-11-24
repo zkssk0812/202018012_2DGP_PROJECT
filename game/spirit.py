@@ -60,6 +60,10 @@ SPIRITS = {
                   base=(80, 13, 11), skills=('wind_shot', 'venom_wind', 'triple_gust', 'wind_blade'),
                   reward=('triple_gust', 'wind_blade'), drop=1.0, radius=38, offset=20, style='ranged',
                   dodge=True, boss=True),
+    'gnome': dict(name='노움', sheet='gnome_corrupt_sheet', pure='gnome_pure_sheet', folder='boss_sprites',
+                  base=(90, 16, 14), skills=('rock_charge', 'dust_whirl', 'rapid_punch', 'slam'),
+                  reward=('rapid_punch', 'slam'), drop=1.0, radius=46, offset=5, style='melee',
+                  dodge=True, boss=True),
 }
 
 MELEE_KINDS = ('melee', 'melee_dot')
