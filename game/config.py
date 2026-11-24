@@ -71,6 +71,7 @@ TUTORIAL_FRAGMENT_DIST = 110     # 저항할 때 떨어져 나온 검은 기운�
 ENCOUNTERS = {
     # 숲 이름: 전투 맵, 나오는 정령, 레벨 범위, 한 번에 나오는 수
     'forest1': dict(battle_map='battle_forest1', spirits=('thorn', 'dew'), levels=(3, 7), count=(2, 3)),
+    'forest2': dict(battle_map='battle_forest2', spirits=('dark_thorn', 'dark_dew'), levels=(10, 13), count=(2, 3)),
 }
 ENCOUNTER_COOLDOWN = 2.0      # 전투에서 돌아온 뒤 이 시간 동안은 조우하지 않음
 BATTLE_END_DELAY = 1.2        # 마지막 정령이 원래 색으로 돌아오고 숲으로 돌아가기까지

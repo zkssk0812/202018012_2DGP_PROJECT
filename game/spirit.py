@@ -48,6 +48,13 @@ SPIRITS = {
                   skills=('scratch', 'thorn_stab'), drop=0.3, radius=30, offset=5, style='melee', dodge=True),
     'dew':   dict(name='이슬방울', sheet='dew_corrupt1_sheet', pure='dew_pure_sheet', base=(34, 11, 9),
                   skills=('dew_shot', 'water_shield'), drop=0.3, radius=26, offset=8, style='ranged', dodge=True),
+    # 숲2: 숲1 정령을 어둡게 색만 바꾼 개체 (그림 · 피격 원은 같고, 능력치와 기술은 강화형. psd 6.2)
+    'dark_thorn': dict(name='어둠가시몽', sheet='thorn_corrupt2_sheet', pure='thorn_pure_sheet', base=(46, 14, 10),
+                       skills=('dash_claw', 'shadow_mist', 'hard_fur'), drop=0.3, radius=30, offset=5,
+                       style='melee', dodge=True),
+    'dark_dew':   dict(name='어둠이슬방울', sheet='dew_corrupt2_sheet', pure='dew_pure_sheet', base=(40, 15, 9),
+                       skills=('light_beam', 'poison_shot'), drop=0.3, radius=26, offset=8,
+                       style='ranged', dodge=True),
     # 상위 정령 (보스). 움직임은 원거리형 AI + 특별 패턴 (boss.py). 이기면 특별 기술 1개 확정 (reward)
     'sylph': dict(name='실프', sheet='sylph_corrupt_sheet', pure='sylph_pure_sheet', folder='boss_sprites',
                   base=(80, 13, 11), skills=('wind_shot', 'venom_wind', 'triple_gust', 'wind_blade'),
