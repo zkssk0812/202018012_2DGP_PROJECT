@@ -1,7 +1,7 @@
 {
   "image": "effects_boss.png",
-  "sheet_w": 2048,
-  "sheet_h": 552,
+  "sheet_w": 4096,
+  "sheet_h": 1320,
   "note": "effects_monster 와 같은 형식. 한 줄 = 이펙트 하나. y는 이미지 맨 위 기준. origin = 칸 왼쪽 위 기준 중심 위치(y 아래로). make_effects_boss.py 로 만든 그림.",
   "effects": {
     "storm": {
@@ -34,9 +34,39 @@
         128
       ]
     },
-    "blade_warn": {
+    "final_charge": {
       "x": 0,
       "y": 512,
+      "label": "마지막 힘 모으기",
+      "use": "실프 즉사 패턴 · \"끝이다\" 동안 실프 몸에",
+      "cell_w": 256,
+      "cell_h": 256,
+      "frames": 8,
+      "fps": 14,
+      "loop": true,
+      "origin": [
+        128,
+        128
+      ]
+    },
+    "final_burst": {
+      "x": 0,
+      "y": 768,
+      "label": "맵 전체 폭발",
+      "use": "실프 즉사 패턴 · 마지막 맵 전체 즉사 (크게 늘려 그림)",
+      "cell_w": 512,
+      "cell_h": 512,
+      "frames": 8,
+      "fps": 12,
+      "loop": false,
+      "origin": [
+        256,
+        256
+      ]
+    },
+    "blade_warn": {
+      "x": 0,
+      "y": 1280,
       "label": "즉사 칼날 예고선",
       "use": "실프 즉사 패턴 · 칼날 방향으로 늘여 그림",
       "cell_w": 256,

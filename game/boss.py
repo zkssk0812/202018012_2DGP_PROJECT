@@ -220,8 +220,8 @@ class Sylph(Spirit):
         self.final = 'charge'
         self.shake = 4.0
         self.speech, self.speech_time = '끝이다...!', TEMPEST_FINAL_CHARGE
-        combat.add_effect(Effect('monster', 'charge_orb', self.x, self.y + 20, scale=2.2,
-                                 lifetime=TEMPEST_FINAL_CHARGE))
+        combat.add_effect(Effect('boss', 'final_charge', self.x, self.y + 20, scale=1.1,
+                                 follow=self, offset_y=20, lifetime=TEMPEST_FINAL_CHARGE))
         combat.add_effect(Effect('monster', 'warn_glint', self.x, self.y + 80, scale=2.0))
         self.say('맵 전체가 터진다! 폭풍 위로 피하자!', TEMPEST_FINAL_CHARGE)
 
@@ -238,7 +238,7 @@ class Sylph(Spirit):
         self.final = 'done'
         self.shake = 1.5
         self.flash = FLASH_TIME
-        combat.add_effect(Effect('monster', 'slam_impact', self.x, self.y, scale=4.0))
+        combat.add_effect(Effect('boss', 'final_burst', self.x, self.y, scale=6.0))    # 화면을 덮는 충격파
         moa = self.opponent
         if moa and not moa.is_down and moa.state != 'lifted':
             moa.guard_time = 0.0

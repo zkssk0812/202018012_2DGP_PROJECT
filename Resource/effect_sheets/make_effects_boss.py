@@ -8,6 +8,8 @@
     storm       폭풍(회오리). 실프 즉사 패턴 동안 실프 둘레를 돈다. 닿으면 모아를 2초 띄워 올림 (무적)
     blade_warn  즉사 바람 칼날 예고선. 칼날이 나갈 방향으로 길게 늘여 그린다
     rage_aura   광폭화 오라. 실프 발밑에서 타오르는 고리
+    final_charge 즉사 패턴 마지막 "끝이다" — 바람이 실프에게 빨려 들며 힘을 모음 (반복)
+    final_burst  맵 전체 즉사 폭발 — 하얀 충격파 고리와 바람 줄기가 퍼짐 (한 번, 크게 늘려 그림)
 """
 import json
 import math
@@ -240,12 +242,84 @@ def draw_aura(frame):
     return c
 
 
+# ── 마지막 힘 모으기 ────────────────────────────────
+CHARGE_W, CHARGE_H, CHARGE_FRAMES = 256, 256, 8
+
+
+def draw_charge(frame):
+    c = Canvas(CHARGE_W, CHARGE_H)
+    phase = frame / CHARGE_FRAMES
+    cx, cy = CHARGE_W / 2, CHARGE_H / 2
+    for y in range(CHARGE_H):
+        for x in range(CHARGE_W):
+            dx, dy = x + 0.5 - cx, y + 0.5 - cy
+            r = math.hypot(dx, dy)
+            if r > 124:
+                continue
+            th = math.atan2(dy, dx)
+            # 안쪽으로 감겨 드는 바람 줄기 (r 이 커질수록 각도가 더 돌아감, phase 로 안쪽을 향해 흐름)
+            s = math.sin(th * 6 - r * 0.07 + phase * math.tau * 2)
+            band = max(0.0, s) ** 6
+            fade = 1 - smooth(70, 124, r)
+            if band > 0.02:
+                col = mix(MID, LIGHT, band)
+                c.blend(x, y, OUTLINE, 0.5 * band * fade)
+                c.blend(x, y, col, 0.85 * band * fade)
+            core = 1 - smooth(14, 34 + 6 * math.sin(phase * math.tau), r)   # 가운데 빛 덩어리 (맥박)
+            if core > 0:
+                c.blend(x, y, mix(LIGHT, WHITE, core), 0.95 * core)
+            glow = 1 - smooth(20, 70, r)
+            if glow > 0:
+                c.blend(x, y, MID, 0.25 * glow)
+    return c
+
+
+# ── 맵 전체 폭발 ────────────────────────────────────
+BURST_W, BURST_H, BURST_FRAMES = 512, 512, 8
+
+
+def draw_burst(frame):
+    c = Canvas(BURST_W, BURST_H)
+    t = frame / (BURST_FRAMES - 1)
+    ease = 1 - (1 - t) ** 3
+    cx, cy = BURST_W / 2, BURST_H / 2
+    ring = 26 + 222 * ease                               # 퍼지는 고리 반지름
+    thick = 34 * (1 - t) + 6
+    alpha_all = 1 - smooth(0.55, 1.0, t)                 # 끝으로 갈수록 사라짐
+    rays = 18
+    for y in range(BURST_H):
+        for x in range(BURST_W):
+            dx, dy = x + 0.5 - cx, y + 0.5 - cy
+            r = math.hypot(dx, dy)
+            if r > 255:
+                continue
+            th = math.atan2(dy, dx)
+            if r < ring:                                 # 고리 안: 하얀 빛이 차 있다가 옅어짐
+                fill = (1 - t) ** 1.5 * (0.35 + 0.65 * (1 - r / max(ring, 1)))
+                c.blend(x, y, mix(LIGHT, WHITE, 1 - r / max(ring, 1)), 0.8 * fill * alpha_all)
+                ray = max(0.0, math.cos(th * rays + frame * 0.6)) ** 12   # 바람 줄기 (방사형)
+                if ray > 0.05:
+                    c.blend(x, y, WHITE, 0.7 * ray * (r / max(ring, 1)) * alpha_all)
+            d = abs(r - ring)
+            if d < thick + 4:                            # 충격파 고리 (테두리 → 분홍 → 흰 중심)
+                k = d / thick
+                if k > 1:
+                    c.blend(x, y, OUTLINE, 0.7 * (1 - (d - thick) / 4) * alpha_all)
+                else:
+                    c.blend(x, y, mix(WHITE, MID, k), (1 - k * k) * 0.95 * alpha_all)
+    return c
+
+
 def main():
     rows = [
         ('storm', draw_storm, STORM_W, STORM_H, STORM_FRAMES, 12, True, [STORM_W // 2, STORM_BASE],
          '폭풍', '실프 즉사 패턴 · 닿으면 2초간 띄워 올림 (무적)'),
         ('rage_aura', draw_aura, AURA_W, AURA_H, AURA_FRAMES, 12, True, [AURA_W // 2, AURA_H // 2],
          '광폭화 오라', '실프 광폭화 · 발밑 고리'),
+        ('final_charge', draw_charge, CHARGE_W, CHARGE_H, CHARGE_FRAMES, 14, True, [CHARGE_W // 2, CHARGE_H // 2],
+         '마지막 힘 모으기', '실프 즉사 패턴 · "끝이다" 동안 실프 몸에'),
+        ('final_burst', draw_burst, BURST_W, BURST_H, BURST_FRAMES, 12, False, [BURST_W // 2, BURST_H // 2],
+         '맵 전체 폭발', '실프 즉사 패턴 · 마지막 맵 전체 즉사 (크게 늘려 그림)'),
         ('blade_warn', draw_warn, WARN_W, WARN_H, WARN_FRAMES, 12, True, [0, WARN_H // 2],
          '즉사 칼날 예고선', '실프 즉사 패턴 · 칼날 방향으로 늘여 그림'),
     ]
