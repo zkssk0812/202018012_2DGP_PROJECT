@@ -58,7 +58,7 @@ FIELD_FEET_OFFSET = 36        # 몸 중심에서 발밑까지 (그림의 발 위
 FRUIT_HEAL = 0.3              # 회복 열매: 최대 HP 30% (psd 4.3)
 FRUIT_REGROW = 60.0           # 먹은 뒤 다시 열리기까지
 FADE_TIME = 0.6               # 숲 ↔ 전투 화면 전환 (어두워지는/밝아지는 시간)
-FIELD_ENTRY = {'forest1': (310, 200)}   # 다른 숲에서 넘어왔을 때 나타나는 자리 (맵 start 는 아래쪽 나무 그늘에 가려짐)
+FIELD_ENTRY = {'forest1': (310, 200), 'forest2': (3770, 200)}   # 다른 숲에서 넘어왔을 때 나타나는 자리 (맵 start 는 아래쪽 나무 그늘에 가려짐)
 
 # ── 튜토리얼 (숲 tutorial 에서 시작할 때) ──
 TUTORIAL = START_FIELD == 'tutorial'

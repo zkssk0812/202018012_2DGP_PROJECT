@@ -368,7 +368,7 @@ def use_exit(ex):
     go_field(target)
 
 
-FIELDS_READY = ('tutorial', 'forest1')       # 지금 갈 수 있는 숲 (숲2·숲3 은 아직)
+FIELDS_READY = ('tutorial', 'forest1', 'forest2')   # 지금 갈 수 있는 숲 (숲3 은 아직)
 
 
 def map_exists(name):
