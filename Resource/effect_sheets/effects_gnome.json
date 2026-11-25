@@ -2,7 +2,7 @@
   "image": "effects_gnome.png",
   "sheet_w": 4096,
   "sheet_h": 1952,
-  "note": "effects_monster 와 같은 형식. 한 줄 = 이펙트 하나. y는 이미지 맨 위 기준. origin = 칸 왼쪽 위 기준 중심 위치(y 아래로). make_effects_gnome.py 로 만든 그림.",
+  "note": "effects_monster 와 같은 형식. 한 줄 = 이펙트 하나. y는 이미지 맨 위 기준. origin = 칸 왼쪽 위 기준 중심 위치(y 아래로). make_effects_gnome.py (fxkit) 로 만든 그림.",
   "effects": {
     "crack_tile": {
       "x": 0,

@@ -185,18 +185,17 @@ class LifeOrb(Essence):
     def draw_ground(self, camera):
         if self.gone or self.state in ('dropping', 'done'):
             return
+        if self.locked:
+            return
         sx, sy = camera.to_screen(self.x, self.y)
-        r = 26 if self.locked else 34 + 4 * math.sin(self.time * 8)
-        draw_circle(int(sx), int(sy), int(r), *self.color)
-        if not self.locked:
-            draw_circle(int(sx), int(sy), int(self.radius), *self.color)
+        draw_circle(int(sx), int(sy), int(self.radius), *self.color)        # 흡수 범위 (검은 기운과 같은 방식)
 
     def draw(self, camera):
         if self.gone or self.state == 'done':
             return
         x, y = self.position()
         sx, sy = camera.to_screen(x, y)
-        scale = 0.55 if self.locked else 0.85 + 0.08 * math.sin(self.time * 6)
+        scale = 0.75 if self.locked else 1.15 + 0.1 * math.sin(self.time * 6)
         if self.state == 'flying':
             scale *= max(0.2, 1 - self.fly_time / max(self.fly_total, 1e-6))
         frame = int(self.time * 10) % 6

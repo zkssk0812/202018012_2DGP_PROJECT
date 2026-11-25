@@ -1,8 +1,8 @@
 {
   "image": "effects_boss.png",
   "sheet_w": 4096,
-  "sheet_h": 1320,
-  "note": "effects_monster 와 같은 형식. 한 줄 = 이펙트 하나. y는 이미지 맨 위 기준. origin = 칸 왼쪽 위 기준 중심 위치(y 아래로). make_effects_boss.py 로 만든 그림.",
+  "sheet_h": 1576,
+  "note": "effects_monster 와 같은 형식. 한 줄 = 이펙트 하나. y는 이미지 맨 위 기준. origin = 칸 왼쪽 위 기준 중심 위치(y 아래로). make_effects_boss.py (fxkit) 로 만든 그림.",
   "effects": {
     "storm": {
       "x": 0,
@@ -16,14 +16,14 @@
       "loop": true,
       "origin": [
         96,
-        238
+        236
       ]
     },
     "rage_aura": {
       "x": 0,
       "y": 256,
-      "label": "광폭화 오라",
-      "use": "실프 광폭화 · 발밑 고리",
+      "label": "광폭화 오라 (뒤)",
+      "use": "실프 광폭화 · 실프 뒤에 그림 (뒤쪽 불꽃 + 바닥 빛). origin = 고리 가운데",
       "cell_w": 256,
       "cell_h": 256,
       "frames": 8,
@@ -31,12 +31,27 @@
       "loop": true,
       "origin": [
         128,
-        128
+        162
+      ]
+    },
+    "rage_aura_front": {
+      "x": 0,
+      "y": 512,
+      "label": "광폭화 오라 (앞)",
+      "use": "실프 광폭화 · 실프 앞에 그림 (앞쪽 불꽃)",
+      "cell_w": 256,
+      "cell_h": 256,
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "origin": [
+        128,
+        162
       ]
     },
     "final_charge": {
       "x": 0,
-      "y": 512,
+      "y": 768,
       "label": "마지막 힘 모으기",
       "use": "실프 즉사 패턴 · \"끝이다\" 동안 실프 몸에",
       "cell_w": 256,
@@ -51,7 +66,7 @@
     },
     "final_burst": {
       "x": 0,
-      "y": 768,
+      "y": 1024,
       "label": "맵 전체 폭발",
       "use": "실프 즉사 패턴 · 마지막 맵 전체 즉사 (크게 늘려 그림)",
       "cell_w": 512,
@@ -66,7 +81,7 @@
     },
     "blade_warn": {
       "x": 0,
-      "y": 1280,
+      "y": 1536,
       "label": "즉사 칼날 예고선",
       "use": "실프 즉사 패턴 · 칼날 방향으로 늘여 그림",
       "cell_w": 256,

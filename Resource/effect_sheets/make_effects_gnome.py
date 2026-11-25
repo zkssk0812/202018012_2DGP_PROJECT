@@ -1,352 +1,450 @@
 """노움(바위의 상위 정령) 전용 이펙트 시트 effects_gnome.png + effects_gnome.json 을 만든다.
 
-effects_boss 와 같은 방식 · 형식. 바위는 갈색, 타락한 노움처럼 자홍 수정 빛을 섞는다.
-    python make_effects_gnome.py      (이 폴더에서 실행)
+타락한 노움처럼 갈색 바위에 자홍 수정 · 마그마 빛을 섞는다. 바위는 높이맵 → 법선 → 빛 방향으로 입체 음영,
+땅의 균열은 보로노이로 자연스럽게 갈라진다. (fxkit.py 사용)
+    python make_effects_gnome.py                 시트 저장
+    python make_effects_gnome.py 이름 out.png 2   확인용 미리보기 (2배)
 
-이펙트:
-    crack_tile      대지 균열 예고: 바닥 칸이 점점 갈라짐 (4프레임: 금 → 깊은 금)
-    rock_pillar     대지 균열: 칸에서 솟는 바위 기둥 (6프레임, 한 번)
-    boulder         대지의 분노: 떨어지는 큰 바위 (1프레임)
-    quake_wave      대지의 분노: 맵 전체 흙빛 충격파 (8프레임, 한 번, 크게 늘려 그림)
-    life_stone_N    생명석 (N = 0 빨강 · 1 파랑 · 2 초록 · 3 노랑). 4프레임 = 맞은 수 0 · 1 · 2 · 부서지기 직전
-    life_orb_N      생명석과 같은 색 기운 (6프레임 반복)
+이펙트 (이름 · 칸 크기 · origin 은 게임 코드와 맞춰 둠):
+    crack_tile      대지 균열 예고 (240×240, 4프레임): 바닥 칸이 점점 깊게 갈라지며 마그마 빛
+    rock_pillar     바위 기둥 (160×240, 6프레임 한 번, origin = 발밑): 솟아오름 → 흙먼지 → 가라앉음
+    boulder         큰 바위 (192×192, origin = 발밑): 대지의 분노 · 충격파를 가림
+    quake_wave      흙빛 충격파 (512×512, 8프레임 한 번, 크게 늘려 그림)
+    life_stone_N    생명석 (96×128, 4프레임 = 맞은 수 0 · 1 · 2 · 부서지기 직전). N = 0 빨강 · 1 파랑 · 2 초록 · 3 노랑
+    life_orb_N      생명석과 같은 색 기운 (64×64, 6프레임 반복)
 """
-import json
 import math
 import random
+import sys
 
-from make_effects_boss import Canvas, mix, smooth
+from fxkit import (Layer, Noise, Sheet, paint, dots, streak, clamp, smooth, mix, ramp, rgb, voronoi, preview)
 
 OUT = 'effects_gnome'
 
-OUTLINE = (40, 22, 18)
-ROCK_DARK = (78, 56, 46)
-ROCK = (122, 92, 72)
-ROCK_LIGHT = (176, 146, 118)
-CRYSTAL = (214, 66, 160)
-CRYSTAL_LIGHT = (255, 170, 225)
-EMBER = (255, 150, 90)
-LIFE = [(235, 70, 70), (80, 140, 255), (90, 210, 110), (250, 205, 60)]
+OUTLINE = rgb('241410')
+ROCK = [(0.0, rgb('2b1c17')), (0.3, rgb('4e382d')), (0.55, rgb('7a5a45')), (0.8, rgb('a8846a')),
+        (1.0, rgb('d8bf9f'))]
+CRYSTAL = [(0.0, rgb('4a0d3c')), (0.45, rgb('b02a8a')), (0.8, rgb('ff6fc8')), (1.0, rgb('ffe0f4'))]
+MAGMA = [(0.0, rgb('3a0a10')), (0.35, rgb('a3241c')), (0.65, rgb('ff6a2a')), (0.85, rgb('ffb35c')),
+         (1.0, rgb('fff0c8'))]
+LIFE = [rgb('eb4646'), rgb('508cff'), rgb('5ad26e'), rgb('facd3c')]
+LIGHT = (-0.5, -0.62, 0.6)                    # 왼쪽 위에서 오는 빛 (이미지 좌표: y 아래로)
+
+N = Noise(11)
+N2 = Noise(23)
 
 
-def lighten(c, k):
-    return mix(c, (255, 255, 255), k)
+def norm3(x, y, z):
+    n = math.sqrt(x * x + y * y + z * z) or 1
+    return x / n, y / n, z / n
 
 
-def darken(c, k):
-    return mix(c, (0, 0, 0), k)
+LX, LY, LZ = norm3(*LIGHT)
 
 
-def poly_inside(px, py, pts):
-    """점이 다각형 안인지 (짝홀 규칙)."""
-    inside = False
-    n = len(pts)
-    for i in range(n):
-        x1, y1 = pts[i]
-        x2, y2 = pts[(i + 1) % n]
-        if (y1 > py) != (y2 > py) and px < (x2 - x1) * (py - y1) / (y2 - y1) + x1:
-            inside = not inside
-    return inside
+def glow(layer, radius, color, strength):
+    g = Layer(layer.w, layer.h)
+    g.a = layer.a[:]
+    g = g.blur(radius, passes=2)
+    out = Layer(layer.w, layer.h)
+    for i in range(layer.w * layer.h):
+        a = clamp(g.a[i] * strength)
+        out.r[i], out.g[i], out.b[i], out.a[i] = color[0] * a, color[1] * a, color[2] * a, a
+    out.composite(layer)
+    return out
 
 
-def draw_line(c, x1, y1, x2, y2, width, color, a=1.0):
-    steps = int(max(abs(x2 - x1), abs(y2 - y1))) + 1
-    for k in range(steps + 1):
-        t = k / steps
-        c.dot(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, width / 2, color, a)
+def shade(height, x, y, eps=0.6):
+    """높이 함수의 법선으로 빛을 계산 (0~1). height(x, y) 는 실수."""
+    hx = (height(x + eps, y) - height(x - eps, y)) / (2 * eps)
+    hy = (height(x, y + eps) - height(x, y - eps)) / (2 * eps)
+    nx, ny, nz = norm3(-hx, -hy, 1.0)
+    diffuse = max(0.0, nx * LX + ny * LY + nz * LZ)
+    return diffuse, nz
 
 
-def rock_blob(c, cx, cy, rx, ry, seed, light_dir=(-0.6, -0.8), crystals=3):
-    """울퉁불퉁한 바위 덩어리 (테두리 + 명암 + 수정)."""
+def rock_shape(cx, cy, rx, ry, seed):
+    """울퉁불퉁한 바위 덩어리: (안에 있나, 높이 함수)."""
     rnd = random.Random(seed)
-    bumps = [(rnd.uniform(0.85, 1.12), rnd.uniform(0, math.tau)) for _ in range(5)]
+    bumps = [(rnd.uniform(0.015, 0.045) / (1 + k * 0.4), rnd.uniform(0, math.tau), k + 2) for k in range(6)]
+    noise = Noise(seed)
 
-    def radius_at(th):
-        r = 1.0
-        for k, (amp, ph) in enumerate(bumps):
-            r += (amp - 1) * math.sin(th * (k + 2) + ph) * 0.5
-        return r
+    def edge(th):
+        return 1 + sum(a * math.sin(th * k + p) for a, p, k in bumps)
 
-    for y in range(int(cy - ry - 6), int(cy + ry + 6)):
-        for x in range(int(cx - rx - 6), int(cx + rx + 6)):
-            dx, dy = (x + 0.5 - cx) / rx, (y + 0.5 - cy) / ry
-            d = math.hypot(dx, dy)
-            th = math.atan2(dy, dx)
-            edge = radius_at(th)
-            if d > edge + 0.1:
-                continue
-            if d > edge - 0.04:
-                c.blend(x, y, OUTLINE, 0.95)
-                continue
-            shade = 0.5 - 0.5 * (dx * light_dir[0] + dy * light_dir[1]) / max(d, 0.2) * min(1, d * 1.6)
-            facet = 0.5 + 0.5 * math.sin(dx * 7 + dy * 5 + seed)
-            col = mix(ROCK_LIGHT, ROCK_DARK, shade * 0.8 + facet * 0.15)
-            c.blend(x, y, col, 1.0)
-    for k in range(crystals):                               # 박힌 자홍 수정
-        a = rnd.uniform(0, math.tau)
-        rr = rnd.uniform(0.2, 0.6)
+    def height(x, y):
+        dx, dy = (x - cx) / rx, (y - cy) / ry
+        d = math.hypot(dx, dy) / edge(math.atan2(dy, dx))
+        if d >= 1:
+            return 0.0
+        base = math.sqrt(1 - d * d)
+        return base * 18 + noise.fbm(x * 0.09, y * 0.09, 4) * 6 * base + \
+            (1 - abs(noise.value(x * 0.05, y * 0.05) * 2 - 1)) * 4 * base      # 깨진 면 느낌
+
+    def inside(x, y):
+        dx, dy = (x - cx) / rx, (y - cy) / ry
+        return math.hypot(dx, dy) / edge(math.atan2(dy, dx))
+
+    return inside, height
+
+
+def paint_rock(L, cx, cy, rx, ry, seed, crystals=3, crystal_scale=1.0):
+    inside, height = rock_shape(cx, cy, rx, ry, seed)
+
+    def fn(x, y):
+        d = inside(x, y)
+        if d > 1.0:
+            return None
+        diffuse, nz = shade(height, x, y)
+        ao = 0.65 + 0.35 * smooth(1.0, 0.55, d)                 # 가장자리는 어둡게 (둥근 덩어리감)
+        grain = N.fbm(x * 0.35, y * 0.35, 2)
+        t = clamp(diffuse * 0.85 * ao + grain * 0.12)
+        a = 1 - smooth(0.96, 1.0, d)
+        return ramp(ROCK, t), a
+
+    paint(L.w, L.h, fn, ss=2, layer=L)
+    rnd = random.Random(seed * 7 + 1)
+    for k in range(crystals):                                   # 박힌 자홍 수정 (면 2개 + 빛)
+        a = rnd.uniform(-2.6, -0.6)
+        rr = rnd.uniform(0.15, 0.55)
         x0, y0 = cx + math.cos(a) * rx * rr, cy + math.sin(a) * ry * rr
-        s = rnd.uniform(0.12, 0.2) * min(rx, ry)
-        pts = [(x0, y0 - s * 1.6), (x0 + s, y0), (x0, y0 + s * 0.8), (x0 - s, y0)]
-        for y in range(int(y0 - s * 2), int(y0 + s * 2)):
-            for x in range(int(x0 - s * 2), int(x0 + s * 2)):
-                if poly_inside(x + 0.5, y + 0.5, pts):
-                    t = (y + 0.5 - (y0 - s * 1.6)) / (s * 2.4)
-                    c.blend(x, y, mix(CRYSTAL_LIGHT, CRYSTAL, t), 0.95)
+        s = rnd.uniform(5, 9) * crystal_scale
+        tilt = rnd.uniform(-0.5, 0.5)
+        crystal(L, x0, y0, s, tilt)
 
 
-# ── 대지 균열: 갈라지는 바닥 ─────────────────────────
-CRACK_W, CRACK_H, CRACK_FRAMES = 240, 240, 4
+def crystal(L, x0, y0, s, tilt, colors=CRYSTAL):
+    """작은 수정 기둥 (왼쪽 면은 밝게, 오른쪽 면은 어둡게)."""
+    tip = (x0 + math.sin(tilt) * s * 2.2, y0 - math.cos(tilt) * s * 2.2)
+    left = (x0 - s * 0.7, y0)
+    right = (x0 + s * 0.7, y0)
+    mid = (x0 + math.sin(tilt) * s * 0.4, y0 + s * 0.25)
+
+    def tri(p, a, b, c):
+        (px, py) = p
+        d = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
+        if d == 0:
+            return False
+        l1 = ((b[1] - c[1]) * (px - c[0]) + (c[0] - b[0]) * (py - c[1])) / d
+        l2 = ((c[1] - a[1]) * (px - c[0]) + (a[0] - c[0]) * (py - c[1])) / d
+        return l1 >= 0 and l2 >= 0 and 1 - l1 - l2 >= 0
+
+    def fn(x, y):
+        if tri((x, y), tip, left, mid):
+            t = (y - tip[1]) / max(1, mid[1] - tip[1])
+            return ramp(colors, 0.95 - t * 0.35), 1.0
+        if tri((x, y), tip, mid, right):
+            t = (y - tip[1]) / max(1, mid[1] - tip[1])
+            return ramp(colors, 0.55 - t * 0.3), 1.0
+        return None
+
+    sub = paint(L.w, L.h, fn, ss=2)
+    sub = glow(sub, 3, colors[2][1], 0.35)
+    L.composite(sub)
 
 
-def crack_paths(seed):
-    """가운데에서 사방으로 뻗는 금 (가지 포함)."""
+# ── 대지 균열 ────────────────────────────────────────
+CRACK = 240
+
+
+def crack_points(seed):
     rnd = random.Random(seed)
-    paths = []
-    for k in range(6):
-        a = k * math.tau / 6 + rnd.uniform(-0.3, 0.3)
-        x, y = CRACK_W / 2, CRACK_H / 2
-        pts = [(x, y)]
-        for step in range(7):
-            a += rnd.uniform(-0.5, 0.5)
-            x += math.cos(a) * 16
-            y += math.sin(a) * 16
-            pts.append((x, y))
-            if step == 3 and rnd.random() < 0.7:            # 가지
-                b = a + rnd.choice((-1, 1)) * rnd.uniform(0.6, 1.0)
-                bx, by = x, y
-                branch = [(bx, by)]
-                for _ in range(3):
-                    b += rnd.uniform(-0.4, 0.4)
-                    bx += math.cos(b) * 14
-                    by += math.sin(b) * 14
-                    branch.append((bx, by))
-                paths.append(branch)
-        paths.append(pts)
-    return paths
+    pts = []
+    n = 5
+    for j in range(n):
+        for i in range(n):
+            pts.append(((i + 0.2 + rnd.random() * 0.6) * CRACK / n, (j + 0.2 + rnd.random() * 0.6) * CRACK / n))
+    return pts
 
 
-def draw_crack(frame):
-    c = Canvas(CRACK_W, CRACK_H)
-    k = (frame + 1) / CRACK_FRAMES
-    # 칸 테두리 (붉게 빛남)
-    for y in range(CRACK_H):
-        for x in range(CRACK_W):
-            e = min(x, y, CRACK_W - 1 - x, CRACK_H - 1 - y)
-            if e < 6:
-                c.blend(x, y, EMBER, (0.35 + 0.45 * k) * (1 - e / 6))
-            else:
-                c.blend(x, y, (150, 40, 25), 0.18 + 0.22 * k)
-    for path in crack_paths(11):
-        n = max(2, int(len(path) * min(1.0, 0.35 + 0.65 * k)))
-        pts = path[:n]
-        for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
-            draw_line(c, x1, y1, x2, y2, 3 + 4 * k, EMBER, 0.35 + 0.3 * k)          # 빛
-            draw_line(c, x1, y1, x2, y2, 1.5 + 2.5 * k, OUTLINE, 0.95)              # 금
-    return c
+PTS = crack_points(5)
 
 
-# ── 솟는 바위 기둥 ──────────────────────────────────
-PILLAR_W, PILLAR_H, PILLAR_FRAMES = 160, 240, 6
+def crack_frame(f):
+    k = (f + 1) / 4                                            # 0.25 → 1
+    cell_rnd = [random.Random(i * 31 + 7).random() for i in range(len(PTS))]
+
+    def fn(x, y):
+        e = min(x, y, CRACK - x, CRACK - y)
+        border = math.exp(-e / (5 + 6 * k))                    # 칸 테두리 빛 (위험 범위 표시)
+        jx = (N.fbm(x * 0.06, y * 0.06, 3) - 0.5) * 14        # 금이 구불구불하게
+        jy = (N2.fbm(x * 0.06, y * 0.06, 3) - 0.5) * 14
+        d1, d2, idx = voronoi(PTS, x + jx, y + jy)
+        gap = d2 - d1                                          # 경계에서 0
+        show = smooth(0.9 - k, 1.05 - k * 0.8, cell_rnd[idx])  # 처음엔 일부 금만, 점점 전부
+        width = (1.2 + 4.0 * k) * (0.6 + 0.8 * N.fbm(x * 0.03 + 9, y * 0.03, 2))
+        crack = (1 - smooth(width * 0.5, width, gap)) * max(show, 0.35 if k > 0.5 else 0.0)
+        plate = 0.10 + 0.14 * k                                # 갈라진 판: 어둡게 + 가장자리 살짝 밝게 (들뜬 판)
+        lip = math.exp(-((gap - width * 1.2) / 2.0) ** 2) * 0.35 * k
+        col, a = rgb('2a110c'), plate
+        if lip > 0.02:
+            col, a = mix(col, rgb('9c6a4c'), lip * 2), max(a, lip)
+        if border > 0.02:
+            col, a = mix(col, ramp(MAGMA, 0.55 + 0.4 * k), border), max(a, border * (0.55 + 0.4 * k))
+        if crack > 0.02:
+            heat = clamp(crack * (0.4 + 0.35 * k) + (1 - gap / max(width, 0.1)) * 0.15, 0, 0.82)
+            col, a = ramp(MAGMA, heat), max(a, crack)
+        return col, clamp(a)
+
+    L = paint(CRACK, CRACK, fn, ss=2)
+    return glow(L, 4, rgb('ff5a2a'), 0.25 * k)
 
 
-def draw_pillar(frame):
-    c = Canvas(PILLAR_W, PILLAR_H)
-    grow = [0.35, 0.75, 1.0, 1.05, 1.0, 0.9][frame]
-    fade = 1.0 if frame < 4 else (0.85 if frame == 4 else 0.6)
-    base_y = PILLAR_H - 14
-    h = 190 * grow
-    top = base_y - h
-    pts = [(PILLAR_W / 2 - 50, base_y), (PILLAR_W / 2 - 34, top + 40), (PILLAR_W / 2 - 8, top),
-           (PILLAR_W / 2 + 20, top + 18), (PILLAR_W / 2 + 36, top + 52), (PILLAR_W / 2 + 52, base_y)]
-    for y in range(int(top) - 4, base_y + 4):
-        for x in range(PILLAR_W):
-            if poly_inside(x + 0.5, y + 0.5, pts):
-                near_edge = not all(poly_inside(x + 0.5 + dx, y + 0.5 + dy, pts)
-                                    for dx, dy in ((3, 0), (-3, 0), (0, 3), (0, -3)))
-                if near_edge:
-                    c.blend(x, y, OUTLINE, 0.95 * fade)
-                else:
-                    t = (x - PILLAR_W / 2 + 50) / 100
-                    facet = 0.5 + 0.5 * math.sin(y * 0.15 + x * 0.05)
-                    c.blend(x, y, mix(ROCK_LIGHT, ROCK_DARK, t * 0.8 + facet * 0.15), fade)
-    for k in range(3):                                      # 기둥의 수정 줄
-        y0 = top + 40 + k * h * 0.25
-        draw_line(c, PILLAR_W / 2 - 16 + k * 6, y0, PILLAR_W / 2 + 4 + k * 6, y0 + 24, 5, CRYSTAL, 0.9 * fade)
-        draw_line(c, PILLAR_W / 2 - 14 + k * 6, y0, PILLAR_W / 2 + 2 + k * 6, y0 + 20, 2, CRYSTAL_LIGHT, fade)
-    rnd = random.Random(frame)
-    for k in range(10 if frame < 3 else 4):                 # 튀는 흙 조각
-        x = PILLAR_W / 2 + rnd.uniform(-70, 70)
-        y = base_y - rnd.uniform(0, 60 + 40 * frame)
-        c.dot(x, y, rnd.uniform(2.5, 5), OUTLINE, 0.9 * fade)
-        c.dot(x, y, rnd.uniform(1.5, 3.5), ROCK_LIGHT, 0.9 * fade)
-    return c
+# ── 바위 기둥 ───────────────────────────────────────
+PW, PH = 160, 240
+P_BASE = PH - 14
+
+
+def pillar_frame(f):
+    grow = [0.32, 0.72, 1.0, 1.04, 0.98, 0.85][f]
+    fade = [1, 1, 1, 1, 0.85, 0.55][f]
+    h = 196 * grow
+    cx = PW / 2
+    apex_x, apex_y = cx - 4, P_BASE - h
+    left_b, right_b = cx - 54, cx + 56                         # 밑면 양 끝
+    edge1_b, edge2_b = cx - 18, cx + 22                        # 면 사이 모서리 (밑에서)
+
+    def fn(x, y):
+        if y > P_BASE + 1 or y < apex_y - 1:
+            return None
+        t = (P_BASE - y) / max(h, 1)                           # 0 바닥 → 1 꼭대기
+        jag = (N.fbm(y * 0.09, 3.1 + f * 0.2, 3) - 0.5) * 9 * (1 - t * 0.5)
+        xl = left_b + (apex_x - left_b) * t + jag
+        xr = right_b + (apex_x - right_b) * t - jag * 0.7
+        if not xl <= x <= xr:
+            return None
+        e1 = edge1_b + (apex_x - edge1_b) * t
+        e2 = edge2_b + (apex_x - edge2_b) * t
+        face = 0.82 if x < e1 else (0.58 if x < e2 else 0.3)  # 밝은 면 · 정면 · 그늘 면
+        tex = N.fbm(x * 0.11, y * 0.05, 4)
+        strata = 0.5 + 0.5 * math.sin(y * 0.21 + tex * 5)       # 지층 무늬
+        tt = clamp(face + (tex - 0.5) * 0.3 + strata * 0.07 - (1 - t) * 0.06)
+        col = ramp(ROCK, tt)
+        if abs(x - e1) < 1.2 or abs(x - e2) < 1.2:             # 모서리 빛
+            col = mix(col, ramp(ROCK, 1.0), 0.35)
+        vein = abs(N2.fbm(x * 0.045, y * 0.028, 3) - 0.5)       # 자홍 수정 맥
+        if vein < 0.016:
+            col = mix(col, ramp(CRYSTAL, 0.9 - vein * 20), 0.85)
+        return col, fade
+
+    L = paint(PW, PH, fn, ss=2)
+    L = glow(L, 2, rgb('ff6fc8'), 0.08)
+    L = L.outline(OUTLINE, width=1.5, strength=0.9 * fade)
+    rnd = random.Random(f + 3)
+    pts = []
+    for k in range(18 if f < 3 else 8):                        # 튀는 흙 · 돌조각 (기둥 바깥으로)
+        x = cx + rnd.choice((-1, 1)) * rnd.uniform(40, 74)
+        y = P_BASE - rnd.uniform(0, 30 + 40 * f)
+        r = rnd.uniform(1.5, 4.0)
+        pts.append((x, y, r + 1, OUTLINE, 0.9 * fade))
+        pts.append((x - 0.5, y - 0.5, r, ramp(ROCK, rnd.uniform(0.5, 0.9)), 0.95 * fade))
+    dots(L, pts)
+    if f in (1, 2, 3):                                           # 발밑 흙먼지
+        dust = paint(PW, PH, lambda x, y: (
+            (rgb('8a6a52'), (1 - smooth(0.4, 1.0, math.hypot((x - cx) / (64 + f * 8), (y - P_BASE + 6) / 16))) *
+             (0.35 + 0.4 * N.fbm(x * 0.08, y * 0.1 + f, 3)) * (0.9 if f < 3 else 0.5))
+            if math.hypot((x - cx) / (64 + f * 8), (y - P_BASE + 6) / 16) < 1 else None), ss=1)
+        dust.composite(L)
+        L = dust
+    return L
 
 
 # ── 큰 바위 ─────────────────────────────────────────
-BOULDER_W, BOULDER_H = 192, 192
+BW, BH = 192, 192
 
 
-def draw_boulder(frame):
-    c = Canvas(BOULDER_W, BOULDER_H)
-    for y in range(BOULDER_H):                              # 바닥 그림자
-        for x in range(BOULDER_W):
-            d = math.hypot((x - BOULDER_W / 2) / 80, (y - BOULDER_H + 30) / 18)
-            if d < 1:
-                c.blend(x, y, (0, 0, 0), 0.35 * (1 - d))
-    rock_blob(c, BOULDER_W / 2, BOULDER_H / 2 + 10, 78, 70, seed=5, crystals=4)
-    return c
+def boulder_frame(f):
+    L = Layer(BW, BH)
+    shadow = paint(BW, BH, lambda x, y: ((0, 0, 0), 0.45 * (1 - smooth(0.3, 1.0, math.hypot(
+        (x - BW / 2) / 84, (y - BH + 32) / 20)))) if math.hypot((x - BW / 2) / 84, (y - BH + 32) / 20) < 1 else None,
+        ss=1)
+    L.composite(shadow)
+    paint_rock(L, BW / 2, BH / 2 + 8, 78, 70, seed=5, crystals=5, crystal_scale=1.3)
+    return L.outline(OUTLINE, width=1.5, strength=0.85)
 
 
-# ── 맵 전체 흙빛 충격파 ─────────────────────────────
-WAVE_W, WAVE_H, WAVE_FRAMES = 512, 512, 8
+# ── 흙빛 충격파 ──────────────────────────────────────
+WAVE = 512
 
 
-def draw_wave(frame):
-    c = Canvas(WAVE_W, WAVE_H)
-    t = frame / (WAVE_FRAMES - 1)
+def wave_frame(f):
+    t = f / 7
     ease = 1 - (1 - t) ** 3
-    cx, cy = WAVE_W / 2, WAVE_H / 2
-    ring = 26 + 222 * ease
-    thick = 40 * (1 - t) + 8
-    alpha_all = 1 - smooth(0.55, 1.0, t)
-    rnd = random.Random(frame)
-    for y in range(WAVE_H):
-        for x in range(WAVE_W):
-            dx, dy = x + 0.5 - cx, y + 0.5 - cy
-            r = math.hypot(dx, dy)
-            if r > 255:
-                continue
-            if r < ring:
-                fill = (1 - t) ** 1.5 * 0.5 * (1 - r / max(ring, 1)) + 0.15 * (1 - t)
-                c.blend(x, y, (200, 160, 110), fill * alpha_all)
-            d = abs(r - ring)
-            if d < thick + 4:
-                k = d / thick
-                if k > 1:
-                    c.blend(x, y, OUTLINE, 0.7 * (1 - (d - thick) / 4) * alpha_all)
-                else:
-                    c.blend(x, y, mix((255, 230, 190), (150, 100, 60), k), (1 - k * k) * 0.95 * alpha_all)
-    for k in range(40):                                     # 고리에 실려 날아가는 돌조각
-        a = rnd.uniform(0, math.tau)
-        r = ring + rnd.uniform(-thick, thick * 0.5)
-        c.dot(cx + math.cos(a) * r, cy + math.sin(a) * r, rnd.uniform(2, 5) * (1 - t * 0.5), OUTLINE, alpha_all)
-        c.dot(cx + math.cos(a) * r, cy + math.sin(a) * r, rnd.uniform(1, 3), ROCK_LIGHT, alpha_all)
-    return c
+    c = WAVE / 2
+    ring = 22 + 222 * ease
+    thick = 50 * (1 - t) ** 0.7 + 10
+    fade = 1 - smooth(0.45, 1.0, t)
+    DUST = [(0.0, rgb('3b2a20')), (0.4, rgb('7a5a42')), (0.75, rgb('c6a27c')), (1.0, rgb('f4e2c4'))]
+
+    def fn(x, y):
+        dx, dy = x - c, y - c
+        r = math.hypot(dx, dy)
+        if r > 255:
+            return None
+        ang = (math.atan2(dy, dx) / math.tau) % 1.0
+        billow = N.wrap_fbm(ang, r * 0.025 - t * 3, freq=14, octaves=4)
+        d = (r - ring) / thick
+        col, a = None, 0.0
+        if -1.6 < d < 1.0:                                    # 흙먼지 고리 (뭉게뭉게)
+            body = (1 - smooth(0.0, 1.0, d)) if d > 0 else math.exp(-(d / 0.9) ** 2)
+            body *= 0.35 + 0.85 * smooth(0.3, 0.75, billow)
+            col, a = ramp(DUST, 0.3 + 0.7 * billow * (1 - abs(d) * 0.4)), body
+        if r < ring * 0.97:                                    # 안쪽: 땅에 새겨진 방사형 금 (점점 옅어짐)
+            k = r / max(ring, 1)
+            crack = max(0.0, math.cos((ang * 22 + N2.wrap_fbm(ang, r * 0.02, freq=8, octaves=2) * 0.8) * math.tau))
+            crack = smooth(0.975, 1.0, crack) * smooth(0.25, 0.6, k) * (1 - t) * 0.5
+            if crack > a:
+                col, a = mix(rgb('2a1810'), rgb('ff8a4a'), 0.3), crack
+        if col is None or a < 0.01:
+            return None
+        return col, a * fade
+
+    L = paint(WAVE, WAVE, fn, ss=1)
+    rnd = random.Random(f + 70)
+    pts = []
+    for k in range(70):                                         # 고리에 실려 날아가는 돌조각
+        a = rnd.random() * math.tau
+        r = ring + rnd.uniform(-thick * 0.6, thick * 0.4)
+        s = rnd.uniform(1.5, 4.5) * (1 - t * 0.4)
+        x, y = c + math.cos(a) * r, c + math.sin(a) * r
+        pts.append((x, y, s + 1, OUTLINE, 0.9 * fade))
+        pts.append((x, y, s, ramp(ROCK, rnd.uniform(0.4, 0.9)), 0.95 * fade))
+    dots(L, pts)
+    return L
 
 
 # ── 생명석 ──────────────────────────────────────────
-STONE_W, STONE_H, STONE_FRAMES = 96, 128, 4
+SW, SH = 96, 128
 
 
-def draw_stone(color, frame):
-    c = Canvas(STONE_W, STONE_H)
-    cx = STONE_W / 2
-    for y in range(STONE_H):                                # 바닥 그림자
-        for x in range(STONE_W):
-            d = math.hypot((x - cx) / 36, (y - STONE_H + 14) / 9)
-            if d < 1:
-                c.blend(x, y, (0, 0, 0), 0.35 * (1 - d))
-    rock_blob(c, cx, STONE_H - 34, 38, 22, seed=3, crystals=0)          # 받침돌
-    gem = [(cx, 10), (cx + 26, 44), (cx + 18, 88), (cx, 100), (cx - 18, 88), (cx - 26, 44)]   # 빛나는 큰 보석
-    glow = lighten(color, 0.5)
-    for y in range(4, 106):
-        for x in range(STONE_W):
-            inside = poly_inside(x + 0.5, y + 0.5, gem)
-            if inside:
-                edge = not all(poly_inside(x + 0.5 + dx, y + 0.5 + dy, gem)
-                               for dx, dy in ((2, 0), (-2, 0), (0, 2), (0, -2)))
-                if edge:
-                    c.blend(x, y, darken(color, 0.65), 1.0)
-                else:
-                    side = (x - cx) / 26
-                    t = (y - 10) / 90
-                    col = mix(lighten(color, 0.55), darken(color, 0.35), max(0, side) * 0.7 + t * 0.4)
-                    if side < -0.2 and t < 0.6:
-                        col = mix(col, (255, 255, 255), 0.35)
-                    c.blend(x, y, col, 1.0)
-            else:
-                d = min(math.hypot(x - px, y - py) for px, py in gem)
-                if d < 6:
-                    c.blend(x, y, glow, 0.25 * (1 - d / 6))
-    rnd = random.Random(21)                                 # 맞은 만큼 금 (frame 1~3)
-    cracks = [[(cx - 4, 30), (cx + 6, 48), (cx - 2, 62), (cx + 8, 78)],
-              [(cx + 14, 40), (cx + 2, 56), (cx + 12, 70)],
-              [(cx - 16, 52), (cx - 4, 66), (cx - 12, 86), (cx + 2, 96)]]
-    for k in range(min(frame, 3)):
+def stone_frame(ci, f):
+    color = LIFE[ci]
+    GEM = [(0.0, mix(color, (0, 0, 0), 0.75)), (0.35, mix(color, (0, 0, 0), 0.35)), (0.65, color),
+           (0.85, mix(color, (1, 1, 1), 0.45)), (1.0, mix(color, (1, 1, 1), 0.85))]
+    cx = SW / 2
+    L = Layer(SW, SH)
+    L.composite(paint(SW, SH, lambda x, y: ((0, 0, 0), 0.4 * (1 - smooth(0.3, 1.0, math.hypot(
+        (x - cx) / 38, (y - SH + 16) / 9)))) if math.hypot((x - cx) / 38, (y - SH + 16) / 9) < 1 else None, ss=1))
+    paint_rock(L, cx, SH - 30, 36, 20, seed=3, crystals=0)    # 받침돌
+
+    # 육각 기둥 보석: 왼쪽 면 · 가운데 면 · 오른쪽 면 + 뾰족한 머리
+    top_y, shoulder, bottom = 10, 36, 96
+    hw = 24
+
+    def fn(x, y):
+        if y < top_y or y > bottom + 2:
+            return None
+        if y < shoulder:                                         # 머리 (뾰족)
+            w = hw * (y - top_y) / (shoulder - top_y)
+        else:
+            w = hw - (y - shoulder) / (bottom - shoulder) * 4
+        dx = x - cx
+        if abs(dx) > w:
+            return None
+        u = dx / max(w, 0.1)                                     # -1 ~ 1
+        if u < -0.38:
+            t = 0.88
+        elif u < 0.32:
+            t = 0.62
+        else:
+            t = 0.32
+        t += (0.08 if y < shoulder else 0) - (y - top_y) / (bottom - top_y) * 0.18
+        inner = math.exp(-((y - 58) / 22) ** 2) * math.exp(-(dx / 10) ** 2) * 0.35     # 안쪽 빛
+        col = ramp(GEM, clamp(t + inner))
+        if abs(u + 0.38) < 0.05 or abs(u - 0.32) < 0.05:          # 면 사이 모서리 빛
+            col = mix(col, (1, 1, 1), 0.35)
+        if -0.75 < u < -0.55 and shoulder < y < 82:              # 세로 하이라이트
+            col = mix(col, (1, 1, 1), 0.55)
+        return col, 1.0
+
+    gem = paint(SW, SH, fn, ss=3)
+    # 맞은 만큼 금 (빛이 새어 나옴)
+    cracks = [[(cx - 5, 26), (cx + 4, 42), (cx - 3, 56), (cx + 7, 72)],
+              [(cx + 12, 40), (cx + 2, 54), (cx + 11, 68), (cx + 4, 84)],
+              [(cx - 15, 50), (cx - 6, 64), (cx - 13, 80), (cx - 2, 92)]]
+    for k in range(min(f, 3)):
         pts = cracks[k]
         for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
-            draw_line(c, x1, y1, x2, y2, 3, (255, 255, 255), 0.5)
-            draw_line(c, x1, y1, x2, y2, 1.6, darken(color, 0.8), 1.0)
-    if frame == 3:                                          # 부서지기 직전: 빛이 새어 나옴
-        for k in range(6):
+            streak(gem, x1, y1, x2, y2, 3.2, mix(color, (1, 1, 1), 0.85), 0.8, taper=False)
+            streak(gem, x1, y1, x2, y2, 1.3, mix(color, (0, 0, 0), 0.8), 1.0, taper=False)
+    gem = gem.outline(mix(color, (0, 0, 0), 0.8), width=1.2, strength=0.9)
+    gem = glow(gem, 6, color, 0.5 + 0.15 * f)
+    if f == 3:                                                   # 부서지기 직전: 빛줄기
+        rnd = random.Random(ci)
+        for k in range(7):
             a = rnd.uniform(0, math.tau)
-            draw_line(c, cx, 55, cx + math.cos(a) * 40, 55 + math.sin(a) * 40, 2, lighten(color, 0.7), 0.6)
-    return c
+            streak(gem, cx, 60, cx + math.cos(a) * 44, 60 + math.sin(a) * 44, 2.4, mix(color, (1, 1, 1), 0.7),
+                   0.7, mode='add')
+    L.composite(gem)
+    return L
 
 
 # ── 생명석과 같은 색 기운 ────────────────────────────
-ORB_W, ORB_H, ORB_FRAMES = 64, 64, 6
+OW = 64
 
 
-def draw_orb(color, frame):
-    c = Canvas(ORB_W, ORB_H)
-    cx, cy = ORB_W / 2, ORB_H / 2
-    ph = frame / ORB_FRAMES * math.tau
-    for y in range(ORB_H):
-        for x in range(ORB_W):
-            dx, dy = x + 0.5 - cx, y + 0.5 - cy
-            r = math.hypot(dx, dy)
-            th = math.atan2(dy, dx)
-            wob = 13 + 2.5 * math.sin(th * 3 + ph) + 1.5 * math.sin(th * 5 - ph * 2)
-            if r < wob:
-                k = r / wob
-                c.blend(x, y, mix(lighten(color, 0.85), color, k), 0.95)
-            elif r < wob + 2:
-                c.blend(x, y, darken(color, 0.6), 0.9)
-            elif r < 30:
-                c.blend(x, y, color, 0.35 * (1 - (r - wob) / (30 - wob)))
-    for k in range(3):                                      # 도는 작은 빛
-        a = ph + k * math.tau / 3
-        c.dot(cx + math.cos(a) * 22, cy + math.sin(a) * 22, 2.2, lighten(color, 0.7), 0.9)
-    return c
+def orb_frame(ci, f):
+    color = LIFE[ci]
+    ph = f / 6
+    c = OW / 2
+
+    def fn(x, y):
+        dx, dy = x - c, y - c
+        r = math.hypot(dx, dy)
+        if r > 31:
+            return None
+        ang = (math.atan2(dy, dx) / math.tau) % 1.0
+        swirl = N.wrap_fbm((ang + ph + r * 0.02) % 1.0, r * 0.08, freq=4, octaves=3)
+        rad = 12.5 + 3 * swirl
+        if r < rad:
+            k = r / rad
+            col = mix(mix(color, (1, 1, 1), 0.9), color, k ** 1.5)
+            arm = max(0.0, math.sin((ang * 3 - r * 0.12 + ph) * math.tau)) ** 3 * k   # 안에서 도는 소용돌이
+            col = mix(col, mix(color, (0, 0, 0), 0.35), arm * 0.5)
+            return col, 1.0 - smooth(0.85, 1.0, k) * 0.2
+        halo = math.exp(-((r - rad) / 7) ** 2) * (0.55 + 0.45 * swirl)
+        return color, halo * 0.8
+
+    L = paint(OW, OW, fn, ss=2)
+    pts = []
+    for k in range(4):                                           # 도는 작은 빛
+        a = (ph + k / 4) * math.tau
+        rr = 20 + 3 * math.sin(a * 2)
+        pts.append((c + math.cos(a) * rr, c + math.sin(a) * rr * 0.75, 1.8, mix(color, (1, 1, 1), 0.8), 0.95))
+    dots(L, pts, mode='add')
+    return L
+
+
+BUILDERS = {
+    'crack_tile': (crack_frame, 4), 'rock_pillar': (pillar_frame, 6), 'boulder': (boulder_frame, 1),
+    'quake_wave': (wave_frame, 8),
+    **{f'life_stone_{i}': ((lambda f, i=i: stone_frame(i, f)), 4) for i in range(4)},
+    **{f'life_orb_{i}': ((lambda f, i=i: orb_frame(i, f)), 6) for i in range(4)},
+}
 
 
 def main():
-    rows = [('crack_tile', draw_crack, CRACK_W, CRACK_H, CRACK_FRAMES, 4, False, [CRACK_W // 2, CRACK_H // 2],
-             '대지 균열 예고', '노움 · 갈라지는 바닥 칸'),
-            ('rock_pillar', draw_pillar, PILLAR_W, PILLAR_H, PILLAR_FRAMES, 12, False, [PILLAR_W // 2, PILLAR_H - 14],
-             '바위 기둥', '노움 대지 균열 · 칸에서 솟음'),
-            ('boulder', draw_boulder, BOULDER_W, BOULDER_H, 1, 1, True, [BOULDER_W // 2, BOULDER_H - 30],
-             '큰 바위', '노움 대지의 분노 · 충격파를 가림'),
-            ('quake_wave', draw_wave, WAVE_W, WAVE_H, WAVE_FRAMES, 12, False, [WAVE_W // 2, WAVE_H // 2],
-             '흙빛 충격파', '노움 대지의 분노 · 맵 전체 (크게 늘려 그림)')]
-    for i, col in enumerate(LIFE):
-        rows.append((f'life_stone_{i}', lambda f, col=col: draw_stone(col, f), STONE_W, STONE_H, STONE_FRAMES, 1,
-                     True, [STONE_W // 2, STONE_H - 24], f'생명석 {i}', '노움 생명석 · 프레임 = 맞은 수'))
-    for i, col in enumerate(LIFE):
-        rows.append((f'life_orb_{i}', lambda f, col=col: draw_orb(col, f), ORB_W, ORB_H, ORB_FRAMES, 10, True,
-                     [ORB_W // 2, ORB_H // 2], f'생명 기운 {i}', '노움 생명석과 같은 색 기운'))
-    sheet_w = max(w * n for _, _, w, _, n, *_ in rows)
-    sheet_h = sum(h for _, _, _, h, *_ in rows)
-    sheet = Canvas(sheet_w, sheet_h)
-    meta = {'image': f'{OUT}.png', 'sheet_w': sheet_w, 'sheet_h': sheet_h,
-            'note': 'effects_monster 와 같은 형식. 한 줄 = 이펙트 하나. y는 이미지 맨 위 기준. '
-                    'origin = 칸 왼쪽 위 기준 중심 위치(y 아래로). make_effects_gnome.py 로 만든 그림.',
-            'effects': {}}
-    y = 0
-    for name, fn, w, h, n, fps, loop, origin, label, use in rows:
-        for f in range(n):
-            sheet.paste(fn(f), f * w, y)
-        print(name)
-        meta['effects'][name] = {'x': 0, 'y': y, 'label': label, 'use': use, 'cell_w': w, 'cell_h': h,
-                                 'frames': n, 'fps': fps, 'loop': loop, 'origin': origin}
-        y += h
-    sheet.save_png(f'{OUT}.png')
-    with open(f'{OUT}.json', 'w', encoding='utf-8') as fp:
-        json.dump(meta, fp, ensure_ascii=False, indent=2)
-    print('saved', f'{OUT}.png', sheet_w, 'x', sheet_h)
+    sheet = Sheet(OUT, 'effects_monster 와 같은 형식. 한 줄 = 이펙트 하나. y는 이미지 맨 위 기준. '
+                       'origin = 칸 왼쪽 위 기준 중심 위치(y 아래로). make_effects_gnome.py (fxkit) 로 만든 그림.')
+    sheet.add('crack_tile', [crack_frame(f) for f in range(4)], 4, False, [CRACK // 2, CRACK // 2],
+              '대지 균열 예고', '노움 · 갈라지는 바닥 칸')
+    sheet.add('rock_pillar', [pillar_frame(f) for f in range(6)], 12, False, [PW // 2, P_BASE],
+              '바위 기둥', '노움 대지 균열 · 칸에서 솟음')
+    sheet.add('boulder', [boulder_frame(0)], 1, True, [BW // 2, BH - 30], '큰 바위', '노움 대지의 분노 · 충격파를 가림')
+    sheet.add('quake_wave', [wave_frame(f) for f in range(8)], 12, False, [WAVE // 2, WAVE // 2],
+              '흙빛 충격파', '노움 대지의 분노 · 맵 전체 (크게 늘려 그림)')
+    for i in range(4):
+        sheet.add(f'life_stone_{i}', [stone_frame(i, f) for f in range(4)], 1, True, [SW // 2, SH - 24],
+                  f'생명석 {i}', '노움 생명석 · 프레임 = 맞은 수')
+    for i in range(4):
+        sheet.add(f'life_orb_{i}', [orb_frame(i, f) for f in range(6)], 10, True, [OW // 2, OW // 2],
+                  f'생명 기운 {i}', '노움 생명석과 같은 색 기운')
+    sheet.save()
 
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) > 1:
+        fn, n = BUILDERS[sys.argv[1]]
+        preview([fn(f) for f in range(n)], sys.argv[2], scale=int(sys.argv[3]) if len(sys.argv) > 3 else 1, cols=4)
+    else:
+        main()

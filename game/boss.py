@@ -105,7 +105,8 @@ class Sylph(Spirit):
         self.final = None           # 마지막 폭발: None → 'charge'(힘 모으기) → 'done'
         self.flash = 0.0            # 폭발 섬광 남은 시간
         self.speech, self.speech_time = '', 0.0   # 머리 위 말풍선
-        self.aura = Effect('boss', 'rage_aura', x, y, scale=0.62)
+        self.aura = Effect('boss', 'rage_aura', x, y, scale=0.85)               # 실프 뒤 (뒤쪽 불꽃 · 바닥 빛)
+        self.aura_front = Effect('boss', 'rage_aura_front', x, y, scale=0.85)   # 실프 앞 (앞쪽 불꽃)
 
     def world_objects(self):
         return self.storms
@@ -154,6 +155,7 @@ class Sylph(Spirit):
         self.storms = [st for st in self.storms if not st.done]
         if self.raging:
             self.aura.update(dt)
+            self.aura_front.update(dt)
 
     def check_patterns(self):
         """광폭화: HP 10% 이하 (즉사 패턴 중이 아닐 때, 한 번)."""
@@ -284,10 +286,14 @@ class Sylph(Spirit):
 
     # ── 그리기 ──────────────────────────────────────
     def draw(self, camera):
-        if self.raging and not self.is_down:
-            self.aura.x, self.aura.y = self.x, self.y - 18
+        raging = self.raging and not self.is_down
+        if raging:
+            self.aura.x, self.aura.y = self.x, self.y - 26          # 발밑 고리
             self.aura.draw(camera)
         super().draw(camera)
+        if raging:
+            self.aura_front.x, self.aura_front.y = self.x, self.y - 26
+            self.aura_front.draw(camera)
 
 
 def screen_fill(color, alpha):
