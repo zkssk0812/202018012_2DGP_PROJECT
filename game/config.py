@@ -102,12 +102,12 @@ SPIRIT_FIRST_DELAY = (0.8, 2.0)   # 전투가 시작되고 첫 기술까지 (여
 BOSSES = {
     # 숲 이름: 길목을 막는 상위 정령 (자리는 숲 맵 json 의 boss.pos)
     'forest1': dict(kind='sylph', level=9, battle_map='battle_forest1'),
-    'forest2': dict(kind='gnome', level=14, battle_map='battle_forest2', fight=False),   # 노움: 아직 배치만 (전투 없음)
+    'forest2': dict(kind='gnome', level=14, battle_map='battle_forest2'),
 }
 # 관리자 P (튜토리얼이 끝난 뒤): Lv10 + 기술 + 실프 앞 (보스 범위 바로 밖, 위로 걸으면 보스전)
 ADMIN_WARP = dict(field='forest1', pos=(3730, 2470), skills=('thorn_stab', 'dew_shot'))
 BOSS_TRIGGER_RADIUS = 260     # 숲에서 이 거리 안으로 들어서면 보스전
-BOSS_REWARD_LEVEL = 10        # 보스를 구하면 적어도 이 레벨이 된다 (E 칸 열림)
+BOSS_REWARD_LEVEL = 10        # 관리자 P 워프의 레벨 (실프를 구했을 때와 같은 Lv10). 보스별 보상 레벨은 spirit.SPIRITS 의 reward_level
 # 즉사 패턴: HP 50% 이하가 되면 한 번. 실프는 무적, 전방위 즉사 바람 칼날 3번 → "끝이다" → 맵 전체 즉사 폭발
 #   마지막 폭발은 폭풍 위에 떠 있어야만 산다
 TEMPEST_HP = 0.5

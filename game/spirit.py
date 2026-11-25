@@ -60,11 +60,11 @@ SPIRITS = {
     'sylph': dict(name='실프', sheet='sylph_corrupt_sheet', pure='sylph_pure_sheet', folder='boss_sprites',
                   base=(80, 13, 11), skills=('wind_shot', 'venom_wind', 'triple_gust', 'wind_blade'),
                   reward=('triple_gust', 'wind_blade'), drop=1.0, radius=38, offset=20, style='ranged',
-                  dodge=True, boss=True),
+                  dodge=True, boss=True, reward_level=10),
     'gnome': dict(name='노움', sheet='gnome_corrupt_sheet', pure='gnome_pure_sheet', folder='boss_sprites',
                   base=(90, 16, 14), skills=('rock_charge', 'dust_whirl', 'rapid_punch', 'slam'),
                   reward=('rapid_punch', 'slam'), drop=1.0, radius=46, offset=5, style='melee',
-                  dodge=True, boss=True),
+                  dodge=False, boss=True, reward_level=15),          # 바위라 피하지 않음
 }
 
 MELEE_KINDS = ('melee', 'melee_dot')
@@ -108,6 +108,8 @@ class Spirit(Fighter):
         self.folder = data.get('folder', 'sprite_sheets')
         self.boss = data.get('boss', False)
         self.reward_skills = data.get('reward', data['skills'])
+        self.reward_level = data.get('reward_level', 0)    # 보스: 구하면 적어도 이 레벨 (실프 10 → E 칸, 노움 15 → R 칸)
+        self.cast_info = None          # 지금 쓰는 기술의 정보 (돌진 · 동작 시간)
         self.notify = None             # 알림을 띄우는 함수 (battle_mode.notice). 보스 패턴 안내에 씀
         self.style = data['style']
         self.can_dodge = data['dodge']
@@ -490,8 +492,18 @@ class Spirit(Fighter):
             self.skill_cd[skill_id] = s['cooldown'] * self.cooldown_rate()
             self.gap = SPIRIT_ATTACK_GAP
             self.sprite.play('attack', self.face, restart=True)
-            skills.cast(skill_id, self)
-        return SUCCESS if self.sprite.done else RUNNING
+            self.cast_info = skills.cast(skill_id, self)
+        info = self.cast_info
+        if info and info['dash']:                       # 돌진 기술: 판정이 켜진 뒤 그 길이만큼 이동
+            dx, dy, speed, dash_time, start = info['dash']
+            t0, t1 = self.state_time - self.dt, self.state_time
+            moving = max(0.0, min(t1, start + dash_time) - max(t0, start))
+            self.move_by(dx * speed * moving, dy * speed * moving)
+        lock = info['lock'] if info else 0.0
+        return SUCCESS if self.sprite.done and self.state_time >= lock else RUNNING
+
+    def exit_attack(self):
+        self.cast_info = None
 
     def do_backoff(self):
         """치고 빠지기: 근접형은 뒤로, 원거리형은 옆으로 (점점 느려짐)."""

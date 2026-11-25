@@ -132,7 +132,12 @@ def play_after_story():
             boss_step = 0.0
         boss.pure_sprite.play('joy', 'down')
 
-    play_scene(story.BOSS_STORY[boss.kind]['after'], dict(calm=calm, step_aside=step_aside), on_end=done)
+    script = story.BOSS_STORY.get(boss.kind, {}).get('after')
+    if script:
+        play_scene(script, dict(calm=calm, step_aside=step_aside), on_end=done)
+    else:                                                        # 대본이 아직 없으면 바로 비켜 줌
+        step_aside()
+        notice(f'{ui.eul(boss.name)} 구했다!', 3.0)
 
 
 def boss_blocking():
@@ -159,7 +164,11 @@ def start_boss():
         boss.shake = 5.0
         combat.add_effect(Effect('monster', 'warn_glint', boss.x, boss.y + 70, scale=1.6))
 
-    play_scene(story.BOSS_STORY[boss.kind]['before'], dict(shake=shake, glint=glint), on_end=go_battle)
+    script = story.BOSS_STORY.get(boss.kind, {}).get('before')
+    if script:
+        play_scene(script, dict(shake=shake, glint=glint), on_end=go_battle)
+    else:                                                        # 대본이 아직 없으면 바로 전투
+        go_battle()
 
 
 def face_boss():

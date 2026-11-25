@@ -29,12 +29,13 @@ from battle_map import BattleMap
 from camera import Camera
 from collision import separate
 from config import (FAINT_RESTART_TIME, ABSORB_TIME, FADE_TIME, BATTLE_END_DELAY,
-                    TUTORIAL_BATTLE_MAP, TUTORIAL_TORI_LEVEL, BOSS_REWARD_LEVEL)
+                    TUTORIAL_BATTLE_MAP, TUTORIAL_TORI_LEVEL)
 from essence import Essence
 from boss import Sylph
+from gnome import Gnome
 from spirit import Spirit
 
-BOSS_CLASSES = {'sylph': Sylph}
+BOSS_CLASSES = {'sylph': Sylph, 'gnome': Gnome}
 from stats import exp_reward
 
 battle_map = None
@@ -230,7 +231,7 @@ def reward(spirit):
     """쓰러뜨린 정령의 기운을 흡수했을 때: 경험치 + 기술."""
     moa.gain_exp(exp_reward(spirit.level))
     if spirit.boss:                               # 상위 정령을 구하면: 적어도 Lv10 (E 칸 열림), 다음 길이 열림
-        while moa.level < BOSS_REWARD_LEVEL:
+        while moa.level < spirit.reward_level:
             moa.gain_exp(moa.exp_needed - moa.exp)
         world.cleared.add(spirit.kind)
         world.boss_saved = spirit.kind            # 숲으로 돌아가면 구한 뒤 이야기
