@@ -14,8 +14,9 @@
 광폭화 (HP 10% 이하가 되면 한 번, 20초)
     · 기술 쿨다운이 50% 줄어든다. 발밑에 붉은 오라.
 
-상태 (Spirit 의 상태에 하나 추가):
-    (싸우는 상태) ──storm_call──▶ tempest ──tempest_end──▶ idle      (즉사 패턴 10초, 무적)
+행동 트리 (Spirit 의 트리에 보스 패턴 가지 하나 추가, 피격보다 우선):
+    Sequence 즉사 패턴 : HP 50% 이하가 됐나? (한 번) → 즉사 패턴 (약 9초 RUNNING, 그동안 무적)
+광폭화는 행동이 아니라 상태 변화라 매 프레임 update 에서 확인한다.
 """
 import math
 import random
@@ -34,7 +35,8 @@ from config import (TEMPEST_HP, TEMPEST_TIME, TEMPEST_WAVES, TEMPEST_WARN, TEMPE
                     STORM_SPEED, STORM_LIFT_TIME, RAGE_HP, RAGE_TIME, RAGE_COOLDOWN_RATE)
 from effect import Effect
 from skills import combat_fx_length
-from spirit import Spirit, FIGHTING
+from behavior_tree import Sequence, Action, Condition, SUCCESS, RUNNING
+from spirit import Spirit
 
 STORM_SCALE = 0.6           # 폭풍 그림 크기
 STORM_GROW = 0.4            # 생길 때 커지는 시간
@@ -93,14 +95,9 @@ class Storm:
 
 
 class Sylph(Spirit):
-    states = Spirit.states + ['tempest']
-
     def __init__(self, kind, level, x, y, area, target):
-        super().__init__(kind, level, x, y, area, target)
-        self.machine.add_transition('storm_call', [s for s in FIGHTING if s != 'hold'], 'tempest')
-        self.machine.add_transition('tempest_end', 'tempest', 'idle')
-        self.machine.add_transition('faint', 'tempest', 'faint')       # 관리자 G (즉사) 대비
         self.tempest_done = False
+        super().__init__(kind, level, x, y, area, target)
         self.rage_done = False
         self.rage_time = 0.0
         self.storms = []
@@ -110,9 +107,13 @@ class Sylph(Spirit):
         self.speech, self.speech_time = '', 0.0   # 머리 위 말풍선
         self.aura = Effect('boss', 'rage_aura', x, y, scale=0.62)
 
+    def pattern_branches(self):
+        return [Sequence('즉사 패턴', Condition('HP 50% 이하가 됐나', self.want_tempest),
+                         Action('즉사 패턴', self.do_tempest))]
+
     @property
     def is_invincible(self):
-        return super().is_invincible or self.state == 'tempest'
+        return super().is_invincible or self.act == 'tempest'
 
     @property
     def raging(self):
@@ -123,7 +124,7 @@ class Sylph(Spirit):
 
     def pattern_text(self):
         """HUD 에 보여 줄 지금 패턴 (없으면 None)."""
-        if self.state == 'tempest':
+        if self.act == 'tempest':
             if self.final == 'charge':
                 return f'폭풍 위로!  {max(0.0, self.blast_at - self.state_time):.1f}초', (255, 80, 160)
             return '즉사 패턴', (255, 120, 200)
@@ -152,11 +153,8 @@ class Sylph(Spirit):
             self.aura.update(dt)
 
     def check_patterns(self):
-        if self.is_down or self.state in ('hold', 'tempest'):
-            return
-        if not self.tempest_done and self.hp <= self.max_hp * TEMPEST_HP:
-            self.tempest_done = True
-            self.storm_call()
+        """광폭화: HP 10% 이하 (즉사 패턴 중이 아닐 때, 한 번)."""
+        if self.is_down or self.held or self.act == 'tempest':
             return
         if not self.rage_done and self.hp <= self.max_hp * RAGE_HP:
             self.rage_done = True
@@ -166,7 +164,11 @@ class Sylph(Spirit):
             self.say('실프가 광폭화했다! (기술이 더 자주 나온다)', 3.0)
 
     # ── 즉사 패턴 ────────────────────────────────────
-    def on_enter_tempest(self):
+    def want_tempest(self):
+        return not self.tempest_done and not self.held and self.hp <= self.max_hp * TEMPEST_HP
+
+    def start_tempest(self):
+        self.tempest_done = True
         self.cancel_pending()
         self.dots.clear()
         self.look_at_target()
@@ -179,14 +181,16 @@ class Sylph(Spirit):
         combat.add_effect(Effect('monster', 'warn_glint', self.x, self.y + 70, scale=1.6))
         self.say('실프: "다가오지 마!"  — 즉사 칼날! 빈틈·회피·폭풍으로 버티자', 3.5)
 
-    def on_exit_tempest(self):
+    def exit_tempest(self):
         self.shake = 0.0
         for st in self.storms:                          # 모아를 띄우고 있는 폭풍만 남긴다
             if not st.carrying:
                 st.vanish()
         self.gap = 1.0
 
-    def update_tempest(self, dt):
+    def do_tempest(self):
+        if self.begin('tempest'):
+            self.start_tempest()
         t = self.state_time
         self.shake = 1.5
         for w in self.waves:
@@ -213,7 +217,8 @@ class Sylph(Spirit):
             self.sprite.play('idle', self.face)
         if t >= TEMPEST_TIME:
             self.shake = 0.0
-            self.tempest_end()
+            return SUCCESS                              # 다음 행동이 시작될 때 exit_tempest 로 정리
+        return RUNNING
 
     # ── 마지막: 맵 전체 폭발 ──────────────────────────
     def start_final(self):
@@ -247,7 +252,7 @@ class Sylph(Spirit):
 
     def draw_top(self, camera):
         """캐릭터 · 앞쪽 나무 위에 그리는 것: 힘 모으기 어둠, 폭발 섬광, 말풍선."""
-        if self.state == 'tempest' and self.final == 'charge':
+        if self.act == 'tempest' and self.final == 'charge':
             k = min(1.0, (self.state_time - TEMPEST_FINAL_AT) / TEMPEST_FINAL_CHARGE)
             screen_fill((40, 0, 40), 0.15 + 0.35 * k + 0.08 * math.sin(self.state_time * 14))   # 점점 어두워지며 맥박
         if self.flash > 0:

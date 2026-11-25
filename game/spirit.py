@@ -1,17 +1,19 @@
-"""정령 (적). 종류별 데이터는 SPIRITS, 싸우는 방식은 배틀 AI (psd 4.6).
+"""정령 (적). 종류별 데이터는 SPIRITS, 싸우는 방식은 행동 트리(behavior_tree.py)로 짠 배틀 AI (psd 4.6).
 
-상태:
-    idle ──think──▶ position ──settle──▶ idle            (접근·포위·거리 유지)
-    idle/position ──prepare──▶ windup ──strike──▶ attack ──attack_end──▶ backoff ──rest──▶ idle
-                     (공격 차례를 얻어야 함)   (머리 위 ❗ 예고)               (물러나며 차례 반납)
-    idle/position/backoff ──flee──▶ retreat ──calm──▶ idle      (HP 낮음 + 방어 기술 못 씀 → 거리 벌림)
-    idle/position/backoff/retreat ──evade──▶ dodge ──dodge_end──▶ idle  (모아 공격이 날아옴 → 확률로 옆으로 대시, 무적)
-    (싸우는 상태) ──hit──▶ hurt ──recover──▶ idle          (짧게 밀려나고, 예고·준비 중인 공격은 취소)
-    (어느 상태든) ──faint──▶ faint                        (HP 0 → 기절. 흡수될 때까지 그대로)
-    faint ──drain──▶ essence_out ──purify──▶ purified    (모아가 F 로 흡수 → 기운 빠짐 → 원래 색)
-    (싸우는 상태) ──hold_on──▶ hold ──release──▶ idle      (튜토리얼 연출·저항: 공격하지 않음, 무적)
+행동 트리 (매 프레임 위에서부터 확인, 높은 가지가 진행 중인 낮은 가지를 끊을 수 있다):
+    Selector 정령
+    ├ Sequence 쓰러짐      : 쓰러졌나? → 기절 · 기운 빠짐 · 원래 색 (흡수될 때까지)
+    ├ Sequence 연출        : 붙잡혔나? → 붙잡혀 있기 (튜토리얼 · 숲에 서 있는 정령. 공격하지 않음, 무적)
+    ├ (보스 패턴 가지)      : 보스마다 더해진다 (실프: 즉사 패턴)
+    ├ Sequence 피격        : 맞았나? → 밀려나기 (예고 · 준비 중이던 공격은 끊김)
+    ├ Sequence 회피        : 공격이 날아오나? (예고·공격 중이 아닐 때, 40%) → 옆으로 대시 (무적, 잔상)
+    ├ Sequence 후퇴        : 위험한가? (HP 낮음 + 방어 기술 못 씀) → 거리 벌리기
+    ├ Sequence 공격        : 상대가 있나? → 기술 · 차례가 있나? → 예고(❗) → 시전 → 물러나기
+    ├ Sequence 자리 잡기    : 상대가 있나? → 갈 곳이 있나? → 이동 (근접형 포위 · 원거리형 거리 유지)
+    └ Action 대기
+지금 하고 있는 행동 이름은 state (애니메이션 · HUD · 다른 정령이 공격 차례를 셀 때 씀).
 
-배틀 AI (psd 4.6): 위에서부터 확인해 첫 번째로 맞는 기술을 쓴다. 없거나 쿨다운 중인 기술은 건너뛴다.
+기술 고르기 (psd 4.6): 위에서부터 확인해 첫 번째로 맞는 기술을 쓴다. 없거나 쿨다운 중인 기술은 건너뛴다.
     1. HP 30% 이하          → 방어 기술 (예고 없이 바로)
     2. 특별 기술 준비 + 사거리 안 → 특별 기술
     3. 플레이어와 가깝다(≤200) → 근접 기술
@@ -24,11 +26,10 @@
 import math
 import random
 
-from transitions import Machine
-
 import combat
 import skills
 from attack import Projectile
+from behavior_tree import BehaviorTree, Selector, Sequence, Action, Condition, SUCCESS, RUNNING
 from config import (SPIRIT_SPEED, SPIRIT_ATTACK_GAP, SPIRIT_SKILL_WINDUP, SPIRIT_NEAR, SPIRIT_LOW_HP,
                     RANGED_KEEP, SPIRIT_FIRST_DELAY, ENEMY_HURT_TIME, ENEMY_KNOCKBACK_SPEED,
                     SPIRIT_TELEGRAPH, SPIRIT_MAX_ATTACKERS, SPIRIT_BACKOFF_TIME, SPIRIT_RETREAT_TIME,
@@ -68,7 +69,8 @@ SPIRITS = {
 
 MELEE_KINDS = ('melee', 'melee_dot')
 RANGED_KINDS = ('ranged', 'ranged_dot')
-FIGHTING = ['idle', 'position', 'windup', 'attack', 'backoff', 'retreat', 'dodge', 'hurt']
+DOWN = ('faint', 'essence_out', 'purified')
+BUSY = ('windup', 'attack')       # 공격 중 (이때는 회피 · 후퇴하지 않고, 공격 차례로 센다)
 GHOST_GAP = 0.05             # 회피 잔상을 남기는 간격
 GHOST_LIFE = 0.25
 
@@ -94,8 +96,6 @@ def angle_diff(a, b):
 
 
 class Spirit(Fighter):
-    states = ['idle', 'position', 'windup', 'attack', 'backoff', 'retreat', 'dodge', 'hurt',
-              'faint', 'essence_out', 'purified', 'hold']
 
     def __init__(self, kind, level, x, y, area, target):
         data = SPIRITS[kind]
@@ -145,39 +145,58 @@ class Spirit(Fighter):
         self.shake_time = 0.0
         self.wander = random.uniform(0, math.tau)   # 원거리형이 옆으로 도는 방향
 
-        self.machine = Machine(model=self, states=type(self).states, initial='idle',
-                               ignore_invalid_triggers=True, after_state_change='reset_state_time')
-        add = self.machine.add_transition
-        add('think', 'idle', 'position')
-        add('settle', 'position', 'idle')
-        add('prepare', ['idle', 'position'], 'windup')
-        add('strike', 'windup', 'attack')
-        add('attack_end', 'attack', 'backoff')
-        add('rest', 'backoff', 'idle')
-        add('flee', ['idle', 'position', 'backoff'], 'retreat')
-        add('calm', 'retreat', 'idle')
-        add('evade', ['idle', 'position', 'backoff', 'retreat'], 'dodge')
-        add('dodge_end', 'dodge', 'idle')
-        add('hit', [s for s in FIGHTING if s != 'dodge'], 'hurt')
-        add('recover', 'hurt', 'idle')
-        add('faint', FIGHTING, 'faint')
-        add('drain', 'faint', 'essence_out')
-        add('purify', 'essence_out', 'purified')
-        add('hold_on', FIGHTING, 'hold')
-        add('release', 'hold', 'idle')
-        self.on_enter_idle()
+        self.act = 'idle'              # 지금 하고 있는 행동 (행동 트리의 Action 이 정함)
+        self.dt = 0.0
+        self.held = False              # 연출로 붙잡혀 있음 (hold_on / release)
+        self.hurt_left = 0.0           # 맞고 밀려나는 남은 시간
+        self.move_v = None             # 자리 잡기: 이번 프레임에 움직일 방향
+        self.tree = BehaviorTree(self.build_tree())
+        self.sprite.play('idle', self.face)
+
+    # ── 행동 트리 ────────────────────────────────────
+    def build_tree(self):
+        return Selector('정령',
+            Sequence('쓰러짐', Condition('쓰러졌나', self.is_out), Action('기절·정화', self.do_down)),
+            Sequence('연출', Condition('붙잡혔나', lambda: self.held), Action('붙잡혀 있기', self.do_hold)),
+            *self.pattern_branches(),
+            Sequence('피격', Condition('맞았나', lambda: self.hurt_left > 0), Action('밀려나기', self.do_hurt)),
+            Sequence('회피', Condition('공격이 날아오나', self.want_dodge), Action('옆으로 대시', self.do_dodge)),
+            Sequence('후퇴', Condition('위험한가', self.want_flee), Action('거리 벌리기', self.do_retreat)),
+            Sequence('공격', Condition('상대가 있나', self.target_ready),
+                     Condition('기술·차례가 있나', self.pick_attack),
+                     Action('예고', self.do_windup), Action('시전', self.do_attack),
+                     Action('물러나기', self.do_backoff)),
+            Sequence('자리 잡기', Condition('상대가 있나', self.target_ready),
+                     Condition('갈 곳이 있나', self.has_place), Action('이동', self.do_move)),
+            Action('대기', self.do_idle))
+
+    def pattern_branches(self):
+        """보스가 더하는 특별 패턴 가지 (피격보다 우선). 일반 정령은 없음."""
+        return []
+
+    @property
+    def state(self):
+        return self.act
+
+    def begin(self, act):
+        """행동을 바꾼다: 앞 행동의 정리(exit_<이름>)를 부르고 시간을 0 으로. 새로 시작했으면 True."""
+        if act == self.act:
+            return False
+        leave = getattr(self, f'exit_{self.act}', None)
+        if leave:
+            leave()
+        self.act = act
+        self.state_time = 0.0
+        return True
 
     @property
     def is_invincible(self):
-        return self.state in ('faint', 'essence_out', 'purified', 'hold', 'dodge')
+        return self.act in DOWN or self.act in ('hold', 'dodge')
 
     @property
     def purify_done(self):
         """원래 색으로 완전히 돌아왔는지 (원래대로 동작까지 끝)."""
         return self.state == 'purified' and self.sprite.done
-
-    def reset_state_time(self):
-        self.state_time = 0.0
 
     def aim_angle(self):
         return self.attack_angle
@@ -231,22 +250,21 @@ class Spirit(Fighter):
 
     def has_turn(self):
         """공격 차례: 지금 예고·공격 중인 다른 정령이 SPIRIT_MAX_ATTACKERS 보다 적으면."""
-        busy = sum(1 for s in self.others() if s.state in ('windup', 'attack'))
+        busy = sum(1 for s in self.others() if s.state in BUSY)
         return busy < SPIRIT_MAX_ATTACKERS
 
-    def try_attack(self):
+    def pick_attack(self):
+        """쓸 기술을 고른다 (next_skill). 방어 기술은 차례가 필요 없고, 다른 기술은 공격 차례가 있어야 한다."""
         skill_id = self.choose_skill()
         if skill_id is None:
             return False
-        self.next_skill = skill_id
-        if skills.info(skill_id)['kind'] == 'guard':    # 방어는 예고 없이 바로 (차례도 필요 없음)
-            self.prepare()
-            self.strike()
-            return True
-        if not self.has_turn():
+        if skills.info(skill_id)['kind'] != 'guard' and not self.has_turn():
             return False
-        self.prepare()
+        self.next_skill = skill_id
         return True
+
+    def want_flee(self):
+        return self.act not in BUSY and self.target_ready() and self.should_flee()
 
     def should_flee(self):
         """HP 가 낮은데 방어 기술을 못 쓰고 모아가 가까우면 거리를 벌린다."""
@@ -324,8 +342,9 @@ class Spirit(Fighter):
             return atk.owner.x, atk.owner.y
         return None
 
-    def check_dodge(self):
-        if not self.can_dodge or self.dodge_cd > 0:
+    def want_dodge(self):
+        """모아의 공격이 날아오면 (공격 하나에 한 번) 확률로 피하기로 하고 방향을 정한다."""
+        if not self.can_dodge or self.dodge_cd > 0 or self.act in BUSY or not self.target_ready():
             return False
         for atk in combat.attacks:
             if id(atk) in self.seen_attacks:
@@ -345,7 +364,6 @@ class Spirit(Fighter):
                 if math.hypot(nx - self.x, ny - self.y) > 40:
                     break
             self.move_vx, self.move_vy = vx, vy
-            self.evade()
             return True
         return False
 
@@ -354,10 +372,20 @@ class Spirit(Fighter):
         dx, dy = self.x - from_x, self.y - from_y
         n = math.hypot(dx, dy) or 1
         self.knock_vx, self.knock_vy = dx / n, dy / n
-        self.hit()
+        self.hurt_left = ENEMY_HURT_TIME
+        self.begin('hurt')
+        self.sprite.play('idle', self.face, restart=True)    # 정령 시트에는 피격 동작이 없음
 
     def on_zero_hp(self):
-        self.faint()
+        self.hurt_left = 0.0
+        self.begin('faint')
+        self.sprite.play('faint', self.face, restart=True)
+
+    def drain(self):
+        """모아가 F 로 흡수하기 시작: 기운이 빠져나간다."""
+        if self.act == 'faint':
+            self.begin('essence_out')
+            self.sprite.play('essence_out', self.face, restart=True)
 
     def roll_skill(self, owned):
         """흡수했을 때 줄 기술 (psd 4.1). 이미 가진 기술은 빼고 고른다. 없으면 None."""
@@ -368,79 +396,154 @@ class Spirit(Fighter):
 
     def kill(self):
         """관리자 G: 즉사 → 바로 기절. (연출로 붙잡혀 있을 때는 안 됨)"""
-        if not self.is_down and self.state != 'hold':
+        if not self.is_down and not self.held:
             self.apply_damage(self.hp)
 
-    # ── 상태 진입 ────────────────────────────────────
-    def on_enter_idle(self):
-        self.sprite.play('idle', self.face)
+    # ── 행동 (Action) ─────────────────────────────────
+    def is_out(self):
+        return self.act in DOWN
 
-    def on_enter_position(self):
+    def do_down(self):
+        """기절 → (흡수되면) 기운 빠짐 → 원래 색. 흡수될 때까지 계속 RUNNING (다시 일어나면 SUCCESS)."""
+        if not self.is_out():
+            return SUCCESS
+        if self.act == 'essence_out' and self.sprite.done:
+            self.begin('purified')
+            self.sprite.play('purify', self.face, restart=True)
+        elif self.act == 'purified':
+            # 원래대로 동작이 끝나면 원래 색 그림(정화된 모습)으로 바꿔 기뻐한다
+            if self.sprite.done and self.pure_sprite is None:
+                self.pure_sprite = SheetSprite(self.folder, self.pure_sheet)
+                self.pure_sprite.play('joy', self.face)
+            if self.pure_sprite:
+                self.pure_sprite.update(self.dt)
+        return RUNNING
+
+    def do_hold(self):
+        """연출로 붙잡혀 있는 동안 RUNNING. 풀려나면(release) SUCCESS 로 끝난다."""
+        if not self.held:
+            return SUCCESS
+        self.begin('hold')
+        if self.resisting and self.sprite.done:          # 기운 빠짐 동작을 계속 되풀이
+            self.sprite.play('essence_out', self.face, restart=True)
+        if self.pure_sprite:
+            self.pure_sprite.update(self.dt)
+        return RUNNING
+
+    def do_hurt(self):
+        self.begin('hurt')
+        dt = self.dt
+        self.move_by(self.knock_vx * ENEMY_KNOCKBACK_SPEED * dt, self.knock_vy * ENEMY_KNOCKBACK_SPEED * dt)
+        self.hurt_left = max(0.0, self.hurt_left - dt)
+        return RUNNING if self.hurt_left > 0 else SUCCESS
+
+    def do_dodge(self):
+        if self.begin('dodge'):
+            self.dodge_cd = SPIRIT_DODGE_COOLDOWN
+            self.face = face_of(self.move_vx, self.move_vy)
+            self.sprite.play('dodge', self.face, restart=True, duration=SPIRIT_DODGE_TIME)
+            self.ghost_time = 0.0
+        dt = self.dt
+        self.move_by(self.move_vx * SPIRIT_DODGE_SPEED * dt, self.move_vy * SPIRIT_DODGE_SPEED * dt)
+        self.ghost_time += dt
+        if self.ghost_time >= GHOST_GAP:
+            self.ghost_time -= GHOST_GAP
+            self.ghosts.append([self.x, self.y, self.sprite.key, self.sprite.index, GHOST_LIFE])
+        return SUCCESS if self.state_time >= SPIRIT_DODGE_TIME else RUNNING
+
+    def do_retreat(self):
+        if self.begin('retreat'):
+            self.retreat_cd = SPIRIT_RETREAT_COOLDOWN
+        if self.target_ready():
+            a = self.angle_to_target()
+            self.move_vx, self.move_vy = -math.cos(a), -math.sin(a)
+            self.face = face_of(self.move_vx, self.move_vy)
         self.sprite.play('move', self.face)
+        dt = self.dt
+        self.move_by(self.move_vx * SPIRIT_SPEED * 1.2 * dt, self.move_vy * SPIRIT_SPEED * 1.2 * dt)
+        return SUCCESS if self.state_time >= SPIRIT_RETREAT_TIME else RUNNING
 
-    def on_enter_windup(self):
-        self.look_at_target()
-        self.attack_angle = self.angle_to_target()      # 근접: 예고가 시작될 때 방향 고정
-        self.sprite.play('idle', self.face)
-        if skills.info(self.next_skill)['kind'] != 'guard':
-            self.warn_fx = combat.add_effect(Effect('monster', 'warn_glint', self.x, self.y + 60, scale=0.9,
-                                                    follow=self, offset_y=60, lifetime=SPIRIT_TELEGRAPH))
+    def do_windup(self):
+        """공격 예고: 머리 위 ❗ (방어 기술은 예고 없이 바로)."""
+        guard = skills.info(self.next_skill)['kind'] == 'guard'
+        if self.begin('windup'):
+            self.look_at_target()
+            self.attack_angle = self.angle_to_target()      # 근접: 예고가 시작될 때 방향 고정
+            self.sprite.play('idle', self.face)
+            if not guard:
+                self.warn_fx = combat.add_effect(Effect('monster', 'warn_glint', self.x, self.y + 60, scale=0.9,
+                                                        follow=self, offset_y=60, lifetime=SPIRIT_TELEGRAPH))
+        return SUCCESS if guard or self.state_time >= SPIRIT_TELEGRAPH else RUNNING
 
-    def on_exit_windup(self):
+    def exit_windup(self):
         if self.warn_fx:
             self.warn_fx.done = True
             self.warn_fx = None
 
-    def on_enter_attack(self):
-        skill_id = self.next_skill
-        s = skills.info(skill_id)
-        if s['kind'] in RANGED_KINDS or s['shape'] == 'projectile':
-            self.attack_angle = self.aim()                # 원거리: 쏘는 순간 예측해서 조준
-        self.face = face_of(math.cos(self.attack_angle), math.sin(self.attack_angle))
-        self.skill_cd[skill_id] = s['cooldown'] * self.cooldown_rate()
-        self.gap = SPIRIT_ATTACK_GAP
-        self.sprite.play('attack', self.face, restart=True)
-        skills.cast(skill_id, self)
+    def do_attack(self):
+        if self.begin('attack'):
+            skill_id = self.next_skill
+            s = skills.info(skill_id)
+            if s['kind'] in RANGED_KINDS or s['shape'] == 'projectile':
+                self.attack_angle = self.aim()                # 원거리: 쏘는 순간 예측해서 조준
+            self.face = face_of(math.cos(self.attack_angle), math.sin(self.attack_angle))
+            self.skill_cd[skill_id] = s['cooldown'] * self.cooldown_rate()
+            self.gap = SPIRIT_ATTACK_GAP
+            self.sprite.play('attack', self.face, restart=True)
+            skills.cast(skill_id, self)
+        return SUCCESS if self.sprite.done else RUNNING
 
-    def on_enter_backoff(self):
-        a = self.angle_to_target()
-        if self.style == 'melee':                         # 뒤로
-            self.move_vx, self.move_vy = -math.cos(a), -math.sin(a)
-        else:                                             # 옆으로
-            side = a + math.pi / 2 * random.choice((1, -1))
-            self.move_vx, self.move_vy = math.cos(side), math.sin(side)
+    def do_backoff(self):
+        """치고 빠지기: 근접형은 뒤로, 원거리형은 옆으로 (점점 느려짐)."""
+        if self.begin('backoff'):
+            a = self.angle_to_target() if self.target_ready() else 0.0
+            if self.style == 'melee':
+                self.move_vx, self.move_vy = -math.cos(a), -math.sin(a)
+            else:
+                side = a + math.pi / 2 * random.choice((1, -1))
+                self.move_vx, self.move_vy = math.cos(side), math.sin(side)
+            self.sprite.play('move', self.face)
+        k = max(0.0, 1 - self.state_time / SPIRIT_BACKOFF_TIME)
+        dt = self.dt
+        self.move_by(self.move_vx * SPIRIT_SPEED * 1.3 * k * dt, self.move_vy * SPIRIT_SPEED * 1.3 * k * dt)
+        return SUCCESS if self.state_time >= SPIRIT_BACKOFF_TIME else RUNNING
+
+    def has_place(self):
+        self.move_v = self.wants_to_move()
+        return self.move_v is not None
+
+    def do_move(self):
+        self.begin('position')
+        v = self.move_v
+        self.wander += self.dt * 0.4
+        self.look_at_target()
         self.sprite.play('move', self.face)
+        self.move_by(v[0] * SPIRIT_SPEED * self.dt, v[1] * SPIRIT_SPEED * self.dt)
+        return SUCCESS
 
-    def on_enter_retreat(self):
-        self.retreat_cd = SPIRIT_RETREAT_COOLDOWN
-        self.sprite.play('move', self.face)
+    def do_idle(self):
+        self.begin('idle')
+        if self.target_ready():
+            self.look_at_target()
+        self.sprite.play('idle', self.face)
+        return SUCCESS
 
-    def on_enter_dodge(self):
-        self.dodge_cd = SPIRIT_DODGE_COOLDOWN
-        self.face = face_of(self.move_vx, self.move_vy)
-        self.sprite.play('dodge', self.face, restart=True, duration=SPIRIT_DODGE_TIME)
-        self.ghost_time = 0.0
-
-    def on_enter_hurt(self):
-        self.sprite.play('idle', self.face, restart=True)    # 정령 시트에는 피격 동작이 없음
-
-    def on_enter_faint(self):
-        self.sprite.play('faint', self.face, restart=True)
-
-    def on_enter_essence_out(self):
-        self.sprite.play('essence_out', self.face, restart=True)
-
-    def on_enter_purified(self):
-        self.sprite.play('purify', self.face, restart=True)
-
-    def on_enter_hold(self):
+    # ── 연출 (튜토리얼 · 숲) ──────────────────────────
+    def hold_on(self):
+        """연출로 붙잡음: 공격하지 않고 무적. 준비 중이던 공격 · 지속 피해는 정리."""
+        self.held = True
         self.cancel_pending()
         self.dots.clear()
+        self.hurt_left = 0.0
+        self.begin('hold')
         self.sprite.play('idle', self.face)
 
-    def on_exit_hold(self):
-        self.resist(False)
-        self.gap = 1.0                        # 풀려나자마자 때리지 않도록
+    def release(self):
+        if self.held:
+            self.held = False
+            self.resist(False)
+            self.gap = 1.0                        # 풀려나자마자 때리지 않도록
+            self.begin('idle')
 
     # ── 튜토리얼 연출 ─────────────────────────────────
     def resist(self, on):
@@ -465,6 +568,7 @@ class Spirit(Fighter):
 
     # ── 매 프레임 ────────────────────────────────────
     def update(self, dt):
+        self.dt = dt
         self.state_time += dt
         self.gap = max(0.0, self.gap - dt)
         self.dodge_cd = max(0.0, self.dodge_cd - dt)
@@ -474,7 +578,7 @@ class Spirit(Fighter):
         self.track_target(dt)
         self.update_status(dt)
         self.shake_time += dt
-        getattr(self, f'update_{self.state}')(dt)
+        self.tree.run()
         self.update_ghosts(dt)
         self.sprite.update(dt)
 
@@ -495,108 +599,10 @@ class Spirit(Fighter):
     def target_ready(self):
         return self.opponent is not None and self.opponent.state != 'faint'
 
-    def think_next(self):
-        """idle · position 에서: 회피 → 후퇴 → 공격 → 움직임 순서로 판단. 상태를 바꿨으면 True."""
-        if self.check_dodge():
-            return True
-        if self.should_flee():
-            self.flee()
-            return True
-        return self.try_attack()
-
-    def update_idle(self, dt):
-        if not self.target_ready():
-            return
-        if self.think_next():
-            return
-        if self.wants_to_move():
-            self.think()
-        else:
-            self.look_at_target()
-            self.sprite.play('idle', self.face)
-
-    def update_position(self, dt):
-        if not self.target_ready():
-            self.settle()
-            return
-        if self.think_next():
-            return
-        v = self.wants_to_move()
-        if v is None:
-            self.settle()
-            return
-        self.wander += dt * 0.4
-        self.look_at_target()
-        self.sprite.play('move', self.face)
-        self.move_by(v[0] * SPIRIT_SPEED * dt, v[1] * SPIRIT_SPEED * dt)
-
-    def update_windup(self, dt):
-        if self.state_time >= SPIRIT_TELEGRAPH or skills.info(self.next_skill)['kind'] == 'guard':
-            self.strike()
-
-    def update_attack(self, dt):
-        if self.sprite.done:
-            self.attack_end()
-
-    def update_backoff(self, dt):
-        if self.check_dodge():
-            return
-        k = 1 - self.state_time / SPIRIT_BACKOFF_TIME           # 점점 느려짐
-        self.move_by(self.move_vx * SPIRIT_SPEED * 1.3 * k * dt, self.move_vy * SPIRIT_SPEED * 1.3 * k * dt)
-        if self.state_time >= SPIRIT_BACKOFF_TIME:
-            self.rest()
-
-    def update_retreat(self, dt):
-        if self.check_dodge():
-            return
-        if self.target_ready():
-            a = self.angle_to_target()
-            self.move_vx, self.move_vy = -math.cos(a), -math.sin(a)
-            self.face = face_of(self.move_vx, self.move_vy)
-            self.sprite.play('move', self.face)
-        self.move_by(self.move_vx * SPIRIT_SPEED * 1.2 * dt, self.move_vy * SPIRIT_SPEED * 1.2 * dt)
-        if self.state_time >= SPIRIT_RETREAT_TIME:
-            self.calm()
-
-    def update_dodge(self, dt):
-        self.move_by(self.move_vx * SPIRIT_DODGE_SPEED * dt, self.move_vy * SPIRIT_DODGE_SPEED * dt)
-        self.ghost_time += dt
-        if self.ghost_time >= GHOST_GAP:
-            self.ghost_time -= GHOST_GAP
-            self.ghosts.append([self.x, self.y, self.sprite.key, self.sprite.index, GHOST_LIFE])
-        if self.state_time >= SPIRIT_DODGE_TIME:
-            self.dodge_end()
-
     def update_ghosts(self, dt):
         for g in self.ghosts:
             g[4] -= dt
         self.ghosts = [g for g in self.ghosts if g[4] > 0]
-
-    def update_hurt(self, dt):
-        self.move_by(self.knock_vx * ENEMY_KNOCKBACK_SPEED * dt, self.knock_vy * ENEMY_KNOCKBACK_SPEED * dt)
-        if self.state_time >= ENEMY_HURT_TIME:
-            self.recover()
-
-    def update_faint(self, dt):
-        pass                                  # 모아가 흡수할 때까지 기절해 있음
-
-    def update_essence_out(self, dt):
-        if self.sprite.done:
-            self.purify()
-
-    def update_purified(self, dt):
-        # 원래대로 동작이 끝나면 원래 색 그림(정화된 모습)으로 바꿔 기뻐한다
-        if self.sprite.done and self.pure_sprite is None:
-            self.pure_sprite = SheetSprite(self.folder, self.pure_sheet)
-            self.pure_sprite.play('joy', self.face)
-        if self.pure_sprite:
-            self.pure_sprite.update(dt)
-
-    def update_hold(self, dt):
-        if self.resisting and self.sprite.done:          # 기운 빠짐 동작을 계속 되풀이
-            self.sprite.play('essence_out', self.face, restart=True)
-        if self.pure_sprite:
-            self.pure_sprite.update(dt)
 
     def move_by(self, dx, dy):
         self.x, self.y = self.battle_map.move(self.x, self.y, dx, dy, self.radius)
@@ -607,7 +613,7 @@ class Spirit(Fighter):
         sx, sy = camera.to_screen(self.x, self.y)
         if self.shake:
             sx += math.sin(self.shake_time * 55) * self.shake
-        elif self.state == 'windup':                       # 예고: 살짝 떤다
+        elif self.act == 'windup':                         # 예고: 살짝 떤다
             sx += math.sin(self.shake_time * 70) * 2
         (self.pure_sprite or self.sprite).draw(sx, sy + self.sprite_offset)
 
