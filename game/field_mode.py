@@ -12,7 +12,7 @@ import random
 import sys
 
 from pico2d import get_events
-from sdl2 import SDL_QUIT, SDL_KEYDOWN, SDL_KEYUP, SDLK_ESCAPE, SDLK_t, SDLK_u, SDLK_j, SDLK_p, SDLK_i
+from sdl2 import SDL_QUIT, SDL_KEYDOWN, SDL_KEYUP, SDLK_ESCAPE, SDLK_t, SDLK_u, SDLK_j, SDLK_p, SDLK_i, SDLK_1, SDLK_2
 
 import admin
 import combat
@@ -21,6 +21,7 @@ import fade
 import game_framework
 import hud
 import resources
+import skills
 import tutorial
 import ui
 import world
@@ -28,7 +29,7 @@ from camera import Camera
 from collision import separate
 from config import (FADE_TIME, FIELD_ENTRY, TUTORIAL, TUTORIAL_TORI_LEVEL, FIELD_FEET_OFFSET,
                     ENCOUNTERS, ENCOUNTER_COOLDOWN, BOSSES, BOSS_TRIGGER_RADIUS,
-                    BOSS_REWARD_LEVEL, ADMIN_WARP)
+                    ADMIN_WARPS)
 import story
 from cutscene import Cutscene
 from effect import Effect
@@ -36,6 +37,7 @@ from field_map import FieldMap
 from moa import DIR_KEYS, face_of
 from spirit import Spirit, SPIRITS
 
+WARP_SAFE_TIME = 5.0      # 관리자 워프 뒤 수풀 조우 없는 시간
 ENCOUNTER_SHAKE = 0.7     # 조우: 수풀이 흔들리는 시간 (이동 막힘) 뒤 전투로
 
 field_map = None
@@ -67,6 +69,8 @@ def init():
     cur_bush = field_map.bush_at(moa.x, moa.y)         # 수풀 위로 돌아와도 바로 다시 조우하지 않게
     encounter_time = None
     safe_time = ENCOUNTER_COOLDOWN if world.encounter else 0.0
+    if world.warp_safe:
+        safe_time, world.warp_safe = WARP_SAFE_TIME, False
     combat.clear()
     me = sys.modules[__name__]
     if TUTORIAL and field_map.tori_pos and tutorial.phase in (None, 'to_field', 'done'):
@@ -204,19 +208,33 @@ def scene_locked():
     return scene is not None and not scene.done
 
 
-def admin_boss_warp():
-    """관리자 P (튜토리얼이 끝난 뒤): 바로 Lv10, 가시찌르기 · 이슬탄을 칸에 넣고, 실프 앞(범위 바로 밖)으로 이동."""
-    while moa.level < BOSS_REWARD_LEVEL:
-        moa.gain_exp(moa.exp_needed - moa.exp)
-    for skill_id in ADMIN_WARP['skills']:
-        if moa.learn(skill_id) == 'full':                        # 열린 칸이 꽉 찼으면 뒤쪽 칸부터 바꿈
-            opened = [i for i in range(len(moa.slots)) if moa.slot_open(i)
-                      and moa.slots[i].skill_id not in ADMIN_WARP['skills']]
-            moa.set_slot(opened[-1], skill_id)
+WARP_KEYS = {SDLK_1: '1', SDLK_2: '2'}
+
+
+def admin_boss_warp(key):
+    """관리자 숫자 키 (튜토리얼이 끝난 뒤): 레벨 · 기술을 맞추고 그 보스 앞(범위 바로 밖)으로 이동.
+    1 = 실프 (Lv10, 가시찌르기 · 이슬탄 추가), 2 = 노움 (Lv18, 돌진 할퀴기 · 빛줄기 · 세 갈래 바람 · 단단한 털).
+    관리자 기능이라 최대 레벨(15)을 넘길 수 있다."""
+    w = ADMIN_WARPS[key]
+    while moa.level < w['level']:
+        moa.level_up()                                           # (gain_exp 는 최대 레벨에서 멈춤)
+    moa.exp = 0
+    if w['keep']:                                                # 가진 기술은 두고 빈칸에 더함
+        for skill_id in w['skills']:
+            if moa.learn(skill_id) == 'full':                    # 열린 칸이 꽉 찼으면 뒤쪽 칸부터 바꿈
+                opened = [i for i in range(len(moa.slots)) if moa.slot_open(i)
+                          and moa.slots[i].skill_id not in w['skills']]
+                moa.set_slot(opened[-1], skill_id)
+    else:                                                        # 칸을 이 기술들로 맞춤
+        for i, skill_id in enumerate(w['skills']):
+            moa.set_slot(i, skill_id)
     moa.hp = moa.max_hp
-    world.current_field = ADMIN_WARP['field']
-    world.field_return = ADMIN_WARP['pos']
-    world.arrive_notice = '[관리자] Lv10 · 가시찌르기 · 이슬탄 — 위로 걸어가면 실프전'
+    world.cleared.update(w['cleared'])
+    world.warp_safe = True                                       # 도착한 뒤 잠깐은 수풀 조우 없이 보스에게
+    world.current_field = w['field']
+    world.field_return = w['pos']
+    names = ' · '.join(skills.info(s)['name'] for s in w['skills'])
+    world.arrive_notice = f"[관리자] Lv{w['level']} · {names} — {w['hint']}"
     me = sys.modules[__name__]
     fade.out(FADE_TIME, lambda: game_framework.change_mode(me))
 
@@ -254,8 +272,9 @@ def handle_events():
         elif e.type == SDL_KEYDOWN and e.key == SDLK_p and not fade.busy():
             if tutorial.running():
                 tutorial.skip_tutorial()                         # 튜토리얼 전체 건너뛰기
-            elif admin.enabled and not tutorial.locked():
-                admin_boss_warp()                                # 관리자: Lv10 + 기술 + 실프 앞으로
+        elif (e.type == SDL_KEYDOWN and e.key in WARP_KEYS and admin.enabled and not fade.busy()
+              and not tutorial.running() and not scene_locked()):
+            admin_boss_warp(WARP_KEYS[e.key])                    # 관리자: 1 실프 앞 · 2 노움 앞
         elif tutorial.locked() or scene_locked() or fade.busy():   # 연출·화면 전환 중: J 건너뛰기만
             if e.type == SDL_KEYDOWN and e.key == SDLK_j:
                 tutorial.skip()

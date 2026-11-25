@@ -105,9 +105,16 @@ BOSSES = {
     'forest2': dict(kind='gnome', level=14, battle_map='battle_forest2'),
 }
 # 관리자 P (튜토리얼이 끝난 뒤): Lv10 + 기술 + 실프 앞 (보스 범위 바로 밖, 위로 걸으면 보스전)
-ADMIN_WARP = dict(field='forest1', pos=(3730, 2470), skills=('thorn_stab', 'dew_shot'))
+ADMIN_WARPS = {
+    # 관리자 숫자 키 (숲, 튜토리얼이 끝난 뒤): 보스 앞(범위 바로 밖)으로 이동 + 레벨 · 기술 준비
+    '1': dict(name='실프', field='forest1', pos=(3730, 2470), level=10, cleared=(),
+              skills=('thorn_stab', 'dew_shot'), keep=True, hint='위로 걸어가면 실프전'),
+    # 노움: 근접 보스 + 즉사급 패턴 → 돌진으로 빠지고 · 빛줄기로 멀리서 · 세 갈래 바람 · 단단한 털(80% 방어)로 버티기
+    '2': dict(name='노움', field='forest2', pos=(470, 2480), level=18, cleared=('sylph',),
+              skills=('dash_claw', 'light_beam', 'triple_gust', 'hard_fur'), keep=False,
+              hint='왼쪽 위로 걸어가면 노움전'),
+}
 BOSS_TRIGGER_RADIUS = 260     # 숲에서 이 거리 안으로 들어서면 보스전
-BOSS_REWARD_LEVEL = 10        # 관리자 P 워프의 레벨 (실프를 구했을 때와 같은 Lv10). 보스별 보상 레벨은 spirit.SPIRITS 의 reward_level
 # 즉사 패턴: HP 50% 이하가 되면 한 번. 실프는 무적, 전방위 즉사 바람 칼날 3번 → "끝이다" → 맵 전체 즉사 폭발
 #   마지막 폭발은 폭풍 위에 떠 있어야만 산다
 TEMPEST_HP = 0.5

@@ -11,6 +11,7 @@ encounter = None             # 지금 전투의 정보 dict(battle_map, spirits=
 defeated = False             # 전투에서 쓰러져 돌아왔는지 (숲에서 알림용)
 cleared = set()              # 구한 보스 (정령 종류). 구하면 그 숲의 다음 길이 열린다
 boss_saved = None            # 방금 구한 보스 (숲으로 돌아가면 이야기 연출, 그 뒤 None)
+warp_safe = False            # 관리자 워프로 왔음 (잠깐 조우 없음)
 arrive_notice = None         # 숲에 들어섰을 때 띄울 알림 (보스를 구했을 때, 관리자 워프 등)
 
 
