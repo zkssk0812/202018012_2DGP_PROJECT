@@ -107,6 +107,9 @@ class Sylph(Spirit):
         self.speech, self.speech_time = '', 0.0   # 머리 위 말풍선
         self.aura = Effect('boss', 'rage_aura', x, y, scale=0.62)
 
+    def world_objects(self):
+        return self.storms
+
     def pattern_branches(self):
         return [Sequence('즉사 패턴', Condition('HP 50% 이하가 됐나', self.want_tempest),
                          Action('즉사 패턴', self.do_tempest))]

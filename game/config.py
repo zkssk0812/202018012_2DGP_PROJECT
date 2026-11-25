@@ -141,6 +141,19 @@ QUAKE_WAVES = (0.8, 2.6, 4.4) # 균열이 생기는 시각 (패턴 시작 기준
 QUAKE_WARN = 1.0              # 균열 → 바위 기둥이 솟기까지
 QUAKE_SAFE = (0.45, 0.3, 2)   # 웨이브마다 안전한 칸 (비율, 마지막은 칸 수)
 QUAKE_TIME = 6.0
+# 대지의 분노: HP 30% 이하가 되면 한 번. 노움 둘레에 바위 4개 → 힘 모으기 → 맵 전체 충격파 (즉사급)
+#   노움 기준으로 바위 뒤(그림자)에 있어야만 안전. 힘을 모으는 동안 흙먼지 회오리가 돌아다니며 밀어낸다. 노움은 무적
+WRATH_HP = 0.3
+WRATH_ROCKS = 4
+WRATH_ROCK_DIST = (330, 470)  # 노움에서 바위까지 거리
+WRATH_ROCK_R = 70             # 바위 크기 (막는 몸 반지름)
+WRATH_ROCK_DROP = (0.3, 1.2)  # 바위가 떨어지기 시작 · 끝나는 시각
+WRATH_CHARGE = 2.5            # "무너져라!" 힘 모으기
+WRATH_BLAST_AT = 1.4 + WRATH_CHARGE
+WRATH_TIME = WRATH_BLAST_AT + 1.0
+WRATH_WHIRLS = 2              # 흙먼지 회오리 수
+WRATH_WHIRL_SPEED = 170
+WRATH_WHIRL_HIT = 0.08        # 회오리에 닿으면 최대 HP 의 이만큼 + 밀려남
 
 # 적이 맞았을 때: 짧게 밀려나고 하던 공격(예고 중)은 취소. 연속 주먹이 다 맞도록 적은 무적 없음
 ENEMY_HURT_TIME = 0.15
