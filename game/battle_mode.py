@@ -90,6 +90,7 @@ def spawn(spirit_list):
         s = cls(kind, level, x, y, battle_map, moa)
         s.on_dot_tick = combat.dot_tick_fx
         s.notify = notice
+        s.add_essence = set_essence                          # 보스 기믹이 내놓는 기운 (노움 생명석)
         enemies.append(s)
     for s in enemies:
         s.allies = enemies                                   # 공격 차례 나누기 · 포위에 씀
@@ -179,7 +180,7 @@ def update(dt):
         s.update(dt)
     update_target()
     push_bodies()
-    combat.update(dt, [moa] + enemies)
+    combat.update(dt, [moa] + enemies + [t for s in enemies for t in s.hit_targets()])
     update_essences(dt)
     update_faint(dt)
     update_end(dt)
@@ -217,6 +218,7 @@ def update_essences(dt):
     for s in enemies:                             # 새로 기절한 정령 자리에 검은 기운
         if s.state == 'faint' and not any(e.source is s and e.drains_source for e in essences):
             essences.append(Essence(s, on_absorbed=lambda s=s: reward(s)))
+    essences[:] = [e for e in essences if not getattr(e, 'gone', False)]   # 기믹이 끝나 사라진 기운
     for e in list(essences):
         was_done = e.done
         e.update(dt)

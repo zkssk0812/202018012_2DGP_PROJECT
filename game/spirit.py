@@ -177,6 +177,10 @@ class Spirit(Fighter):
         """보스가 더하는 특별 패턴 가지 (피격보다 우선). 일반 정령은 없음."""
         return []
 
+    def hit_targets(self):
+        """이 정령이 만든 것 중 모아가 공격할 수 있는 것 (노움의 생명석)."""
+        return []
+
     def world_objects(self):
         """이 정령이 맵에 만든 것 (캐릭터와 함께 y 순서로 그림). 보스: 폭풍 · 바위 등."""
         return []

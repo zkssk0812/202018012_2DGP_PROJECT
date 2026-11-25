@@ -11,6 +11,11 @@
         노움 둘레에 큰 바위 4개가 떨어진다 → "무너져라!" 2.5초 힘 모으기 → 맵 전체 충격파 (즉사급 85%).
         노움 기준으로 바위 뒤(그림자)에 있어야만 안전. 힘을 모으는 동안 흙먼지 회오리 2개가 모아를 쫓아와 밀어낸다.
         충격파가 지나간 바위는 부서진다.
+    Sequence 생명석 (HP 0 기믹) : 생명석 기믹 중인가? → 생명석 (노움 무적, 무릎 꿇음)
+        "아직이다...!" — 생명석 4개(빨강·파랑·초록·노랑)가 0.7초 간격으로 떨어진다. 떨어진 순서가 정답.
+        같은 색의 기운 4개도 흩어진다 (짝 생명석을 부수기 전에는 흐리고 흡수할 수 없음).
+        순서대로 [생명석 부수기(3대) → 같은 색 기운 F 흡수] 4번 → 노움이 쓰러진다 (평소처럼 흡수해 구함).
+        틀린 생명석을 부수면 큰 피해(60%) + 노움 HP 20% 로 부활. 25초가 지나도 부활. 다음 HP 0 때 다시.
 """
 import math
 import random
@@ -26,6 +31,9 @@ from config import (HEAVY_HIT, QUAKE_HP, QUAKE_TILE, QUAKE_COLS, QUAKE_ROWS, QUA
                     WRATH_ROCK_DROP, WRATH_CHARGE, WRATH_BLAST_AT, WRATH_TIME, WRATH_WHIRLS,
                     WRATH_WHIRL_SPEED, WRATH_WHIRL_HIT)
 from cutscene import bubble
+from essence import Essence
+from config import (LIFE_COLORS, LIFE_FALL_START, LIFE_FALL_GAP, LIFE_STONE_HITS, LIFE_LIMIT, LIFE_FAIL_HIT,
+                    LIFE_REVIVE, LIFE_DIST, LIFE_SPACING)
 from pico2d import draw_circle
 from effect import Effect
 from pico2d import draw_rectangle
@@ -77,6 +85,102 @@ class Boulder:
             draw_rectangle(sx - r, sy - r * 0.7, sx + r, sy + r * 0.9, 50, 35, 25)
 
 
+class LifeStone:
+    """생명석: 모아의 공격으로 부순다 (LIFE_STONE_HITS 대). 떨어진 순서대로 부숴야 한다."""
+    team = 'spirit'                 # 노움의 공격에는 맞지 않음
+    defense = 1
+
+    def __init__(self, owner, order, color, x, y, delay):
+        self.owner, self.order, self.color = owner, order, color
+        self.x, self.y = x, y
+        self.radius = 34
+        self.delay = delay
+        self.time = 0.0
+        self.hits = 0
+        self.broken = False
+        self.flash = 0.0
+        self.done = False
+
+    @property
+    def landed(self):
+        return self.time >= self.delay + ROCK_FALL
+
+    @property
+    def is_invincible(self):
+        return self.broken or not self.landed
+
+    def take_hit(self, amount, from_x, from_y):
+        if self.is_invincible:
+            return
+        self.hits += 1
+        self.flash = 0.12
+        if self.hits >= LIFE_STONE_HITS:
+            self.broken = True
+            self.time = 0.0
+            combat.add_effect(Effect('monster', 'slam_impact', self.x, self.y, scale=0.7))
+            self.owner.stone_broken(self)
+
+    def add_dot(self, *args):
+        pass
+
+    def update(self, dt):
+        self.time += dt
+        self.flash = max(0.0, self.flash - dt)
+        if self.broken and self.time >= 0.5:
+            self.done = True
+
+    def draw(self, camera):
+        if self.time < self.delay and not self.broken:
+            return
+        sx, sy = camera.to_screen(self.x, self.y)
+        if not self.landed and not self.broken:
+            k = (self.time - self.delay) / ROCK_FALL
+            draw_circle(int(sx), int(sy), int(self.radius * k), 40, 25, 15)
+            sy += (1 - k) * 450
+        r = self.radius * (1.0 if not self.broken else max(0.0, 1 - self.time / 0.5))
+        if r <= 1:
+            return
+        col = (255, 255, 255) if self.flash > 0 else self.color
+        draw_rectangle(sx - r * 0.8, sy - r * 0.6, sx + r * 0.8, sy + r * 1.3, *col, filled=True)
+        draw_rectangle(sx - r * 0.8, sy - r * 0.6, sx + r * 0.8, sy + r * 1.3, 40, 30, 30)
+        for k in range(self.hits):                               # 금 (맞은 수)
+            draw_rectangle(sx - r * 0.6 + k * r * 0.5, sy + r * 0.2, sx - r * 0.5 + k * r * 0.5, sy + r, 30, 20, 20,
+                           filled=True)
+
+
+class LifeOrb(Essence):
+    """생명석과 같은 색의 기운. 짝 생명석을 부수기 전에는 잠겨 있다 (흐리고 흡수할 수 없음)."""
+
+    def __init__(self, owner, order, color, x, y, on_absorbed):
+        super().__init__(owner, x, y, drop_time=0.9, drains_source=False, on_absorbed=on_absorbed)
+        self.order, self.color = order, color
+        self.locked = True
+        self.gone = False           # True 면 전투 모드가 목록에서 뺀다 (기믹이 끝났을 때)
+
+    def in_range(self, body):
+        return not self.locked and not self.gone and super().in_range(body)
+
+    def draw_ground(self, camera):
+        if self.gone or self.state in ('dropping', 'done'):
+            return
+        sx, sy = camera.to_screen(self.x, self.y)
+        r = 26 if self.locked else 34 + 4 * math.sin(self.time * 8)
+        draw_circle(int(sx), int(sy), int(r), *self.color)
+        if not self.locked:
+            draw_circle(int(sx), int(sy), int(self.radius), *self.color)
+
+    def draw(self, camera):
+        if self.gone or self.state == 'done':
+            return
+        x, y = self.position()
+        sx, sy = camera.to_screen(x, y)
+        size = 10 if self.locked else 16
+        if self.state == 'flying':
+            size *= max(0.2, 1 - self.fly_time / max(self.fly_total, 1e-6))
+        c = tuple(v // 3 for v in self.color) if self.locked else self.color
+        draw_rectangle(sx - size, sy - size, sx + size, sy + size, *c, filled=True)
+
+
 class Whirl:
     """대지의 분노 힘 모으기 동안 모아를 쫓는 흙먼지 회오리. 닿으면 조금 아프고 밀려난다."""
 
@@ -111,7 +215,7 @@ class Whirl:
 
 
 class Gnome(Spirit):
-    armor_acts = ('quake', 'wrath')
+    armor_acts = ('quake', 'wrath', 'last_stand')
 
     def __init__(self, kind, level, x, y, area, target):
         self.quake_done = False
@@ -124,20 +228,32 @@ class Gnome(Spirit):
         self.wrath_step = None      # None → 'charge' → 'blast'
         self.flash = 0.0
         self.speech, self.speech_time = '', 0.0
+        self.stones = []            # 생명석
+        self.orbs = []              # 같은 색 기운 (전투 모드의 기운 목록에도 들어감)
+        self.next_order = 0         # 다음에 부숴야 할 생명석 순서
+        self.need_orb = False       # 생명석을 부쉈고, 그 색 기운을 흡수해야 함
+        self.limit_at = 0.0
+        self.add_essence = None     # 전투 모드에 기운을 넣는 함수 (battle_mode.set_essence)
+        self.stand_result = None    # 기믹 결과: None / 'clear' / 'fail'
 
     def pattern_branches(self):
         # 위에 있을수록 먼저 (HP 가 한 번에 많이 깎여 둘 다 조건이 되면 대지의 분노 먼저)
-        return [Sequence('대지의 분노', Condition('HP 30% 이하가 됐나', self.want_wrath),
+        return [Sequence('생명석', Condition('생명석 기믹 중인가', lambda: self.act == 'last_stand'),
+                         Action('생명석', self.do_last_stand)),
+                Sequence('대지의 분노', Condition('HP 30% 이하가 됐나', self.want_wrath),
                          Action('대지의 분노', self.do_wrath)),
                 Sequence('대지 균열', Condition('HP 70% 이하가 됐나', self.want_quake),
                          Action('대지 균열', self.do_quake))]
 
     def world_objects(self):
-        return self.rocks + self.whirls
+        return self.rocks + self.whirls + self.stones
+
+    def hit_targets(self):
+        return [st for st in self.stones if not st.broken]
 
     @property
     def is_invincible(self):
-        return super().is_invincible or self.act == 'wrath'
+        return super().is_invincible or self.act in ('wrath', 'last_stand')
 
     def pattern_text(self):
         """HUD 에 보여 줄 지금 패턴 (없으면 None)."""
@@ -147,6 +263,10 @@ class Gnome(Spirit):
             if self.wrath_step == 'charge':
                 return f'바위 뒤로!  {max(0.0, WRATH_BLAST_AT - self.state_time):.1f}초', (255, 140, 60)
             return '대지의 분노', (255, 140, 60)
+        if self.act == 'last_stand':
+            dots = ''.join('●' if k < self.next_order else '○' for k in range(len(LIFE_COLORS)))
+            left = max(0.0, self.limit_at - self.state_time)
+            return f'생명석 {dots}  {left:.0f}초', (255, 230, 140)
         return None
 
     def update(self, dt):
@@ -159,6 +279,9 @@ class Gnome(Spirit):
         for w in self.whirls:
             w.update(dt, self.opponent)
         self.whirls = [w for w in self.whirls if not w.done]
+        for st in self.stones:
+            st.update(dt)
+        self.stones = [st for st in self.stones if not st.done]
         moa = self.opponent
         if moa:
             for r in self.rocks:                             # 바위는 모아의 몸을 막는다
@@ -293,6 +416,130 @@ class Gnome(Spirit):
             d = random.uniform(lo, hi)
             x, y = self.battle_map.clamp(self.x + math.cos(a) * d, self.y + math.sin(a) * d, WRATH_ROCK_R + 20)
             self.rocks.append(Boulder(x, y, t0 + (t1 - t0) * k / max(1, WRATH_ROCKS - 1)))
+
+    # ── 생명석 (HP 0 기믹) ────────────────────────────
+    def on_zero_hp(self):
+        """쓰러지는 대신 생명석 기믹 (이미 풀었으면 평소처럼 기절)."""
+        if self.stand_result == 'clear':
+            super().on_zero_hp()
+            return
+        self.hurt_left = 0.0
+        self.begin('last_stand')
+        self.start_stand()
+
+    def kill(self):
+        """관리자 G: 기믹 중이면 바로 푼 것으로 (기절)."""
+        if self.act == 'last_stand':
+            self.finish_stand('clear')
+            return
+        super().kill()
+
+    def do_last_stand(self):
+        if self.act != 'last_stand':                        # 풀었거나(기절) 실패해 일어섰으면 끝
+            return SUCCESS
+        if self.resisting and self.sprite.done:
+            self.sprite.play('essence_out', self.face, restart=True)
+        if self.stand_result is None and self.state_time >= self.limit_at:
+            self.say('시간이 다 됐다... 노움이 다시 일어선다!', 3.0)
+            self.finish_stand('fail')
+        return RUNNING
+
+    def start_stand(self):
+        self.stand_result = None
+        self.cancel_pending()
+        self.dots.clear()
+        self.next_order, self.need_orb = 0, False
+        self.resisting = True                               # 무릎 꿇고 기운이 빠져나가는 동작을 되풀이
+        self.shake = 2.0
+        self.sprite.play('essence_out', self.face, restart=True)
+        self.speech, self.speech_time = '아직이다...!', 2.2
+        self.say('생명석이 떨어진 순서를 기억하자! 순서대로 부수고 같은 색 기운을 흡수하자', 4.0)
+        colors = list(range(len(LIFE_COLORS)))
+        random.shuffle(colors)                              # 떨어지는 순서 = 정답 순서 (색은 매번 다름)
+        spots = self.free_spots(len(colors) * 2)
+        self.stones, self.orbs = [], []
+        for order, ci in enumerate(colors):
+            _, color = LIFE_COLORS[ci]
+            x, y = spots[order]
+            self.stones.append(LifeStone(self, order, color, x, y, LIFE_FALL_START + order * LIFE_FALL_GAP))
+        for order, ci in enumerate(colors):
+            _, color = LIFE_COLORS[ci]
+            x, y = spots[len(colors) + order]
+            orb = LifeOrb(self, order, color, x, y, on_absorbed=lambda o=order: self.orb_absorbed(o))
+            self.orbs.append(orb)
+            if self.add_essence:
+                self.add_essence(orb)
+        self.limit_at = LIFE_FALL_START + len(colors) * LIFE_FALL_GAP + 0.5 + LIFE_LIMIT
+
+    def free_spots(self, n):
+        """노움 둘레(맵 안)에서 서로 떨어진 자리 n 개 (모아 바로 옆은 피함)."""
+        lo, hi = LIFE_DIST
+        spots = []
+        moa = self.opponent
+        for _ in range(400):
+            if len(spots) >= n:
+                break
+            a = random.uniform(0, math.tau)
+            d = random.uniform(lo, hi)
+            x, y = self.battle_map.clamp(self.x + math.cos(a) * d, self.y + math.sin(a) * d, 60)
+            if any(math.hypot(x - px, y - py) < LIFE_SPACING for px, py in spots):
+                continue
+            if moa and math.hypot(x - moa.x, y - moa.y) < 140:
+                continue
+            spots.append((x, y))
+        while len(spots) < n:                               # (드물게) 자리가 모자라면 가까이라도
+            spots.append(self.battle_map.clamp(self.x + random.uniform(-hi, hi), self.y + random.uniform(-hi, hi), 60))
+        return spots
+
+    def stone_broken(self, stone):
+        if self.stand_result is not None:
+            return
+        if self.need_orb or stone.order != self.next_order:
+            self.say('순서가 틀렸다! 노움의 분노가 터진다!', 3.0)
+            moa = self.opponent
+            if moa and not moa.is_down:
+                moa.take_hit(max(1, math.ceil(moa.max_hp * LIFE_FAIL_HIT)), self.x, self.y)
+            combat.add_effect(Effect('monster', 'slam_impact', self.x, self.y, scale=3.0))
+            self.finish_stand('fail')
+            return
+        self.need_orb = True
+        orb = self.orbs[stone.order]
+        orb.locked = False                                  # 같은 색 기운이 빛난다 → 흡수 가능
+        name = next(n for n, c in LIFE_COLORS if c == stone.color)
+        self.say(f'{name} 생명석을 부쉈다! {name} 기운을 흡수하자', 2.5)
+
+    def orb_absorbed(self, order):
+        if self.stand_result is not None:
+            return
+        self.need_orb = False
+        self.next_order = order + 1
+        if self.next_order >= len(LIFE_COLORS):
+            self.finish_stand('clear')
+        else:
+            self.say(f'{self.next_order} / {len(LIFE_COLORS)} — 다음 생명석!', 2.0)
+
+    def finish_stand(self, result):
+        """기믹 끝: clear → 쓰러짐 (흡수로 구할 수 있음), fail → HP 20% 로 부활."""
+        self.stand_result = result
+        self.resisting = False
+        self.shake = 0.0
+        for st in self.stones:
+            if not st.broken:
+                st.broken, st.time = True, 0.0
+        for orb in self.orbs:
+            orb.gone = True
+        self.orbs = []
+        if result == 'clear':
+            self.hp = 0
+            self.say('노움의 생명석이 모두 꺼졌다!', 2.5)
+            Spirit.on_zero_hp(self)                          # 평소처럼 기절 → 검은 기운
+        else:
+            self.hp = max(1, int(self.max_hp * LIFE_REVIVE))
+            self.speech, self.speech_time = '이 정도로는... 쓰러지지 않는다!', 2.2
+            self.begin('idle')
+            self.sprite.play('idle', self.face, restart=True)
+            self.gap = 1.0
+            self.stand_result = None                         # 다음 HP 0 때 다시 기믹
 
     def sheltered(self, body):
         """노움에서 body 까지 직선을 바위가 가리면 True (바위 뒤 그림자 안)."""
