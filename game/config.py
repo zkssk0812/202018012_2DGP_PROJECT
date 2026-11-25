@@ -4,11 +4,15 @@
 단위: 거리 = 맵 픽셀, 시간 = 초, 속도 = 픽셀/초.
 """
 import os
+import sys
 
 # ── 경로 ─────────────────────────────────────────────
+# 릴리즈(실행 파일)에서는 실행 파일 옆의 Resource 폴더를 쓴다 (tools/build_release.py)
+FROZEN = getattr(sys, 'frozen', False)
 GAME_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(GAME_DIR)
+ROOT_DIR = os.path.dirname(sys.executable) if FROZEN else os.path.dirname(GAME_DIR)
 RESOURCE_DIR = os.path.join(ROOT_DIR, 'Resource')
+GAME_TITLE = '텅 빈 정령'
 
 # ── 화면 ─────────────────────────────────────────────
 SCREEN_W, SCREEN_H = 1280, 720
