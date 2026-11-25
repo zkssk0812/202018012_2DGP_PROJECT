@@ -1,4 +1,6 @@
 """전투 중 살아 있는 공격 판정과 이펙트를 모아 두고, 명중을 처리한다."""
+import math
+
 from effect import Effect
 from stats import damage
 
@@ -64,6 +66,12 @@ def hit(atk, target):
     if getattr(atk, 'lethal', False):                # 즉사 공격 (실프 즉사 패턴): 방어도 무시하고 HP 0
         target.guard_time = 0.0
         target.apply_damage(target.hp)
+        add_effect(Effect(owner.fx_owner, atk.hit_fx, target.x, target.y))
+        atk.on_hit(target)
+        return
+    if getattr(atk, 'ratio', None):                  # 즉사급 공격 (노움 패턴): 최대 HP 의 비율만큼 (방어 기술로 줄일 수 있음)
+        sx, sy = atk.source()
+        target.take_hit(max(1, math.ceil(target.max_hp * atk.ratio)), sx, sy)
         add_effect(Effect(owner.fx_owner, atk.hit_fx, target.x, target.y))
         atk.on_hit(target)
         return

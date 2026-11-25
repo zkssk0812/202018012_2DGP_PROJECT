@@ -294,6 +294,9 @@ def draw():
     battle_map.draw_background(camera)
     for e in essences:
         e.draw_ground(camera)
+    for s in enemies:
+        if hasattr(s, 'draw_ground'):             # 보스: 바닥 표시 (노움 대지 균열)
+            s.draw_ground(camera)
     storms = [st for s in enemies for st in getattr(s, 'storms', ())]
     for obj in sorted([moa] + enemies + storms, key=lambda o: -getattr(o, 'sort_y', o.y)):   # 화면 위쪽(뒤)부터
         obj.draw(camera)

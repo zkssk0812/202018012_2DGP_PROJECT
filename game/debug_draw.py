@@ -3,7 +3,7 @@ import math
 
 from pico2d import draw_circle, draw_line, draw_rectangle
 
-from collision import Circle, Sector, Capsule
+from collision import Circle, Sector, Capsule, Rect
 
 HURTBOX_COLOR = (255, 30, 30)          # 피격 범위 (U)
 HURTBOX_OFF_COLOR = (150, 150, 150)    # 무적이라 지금은 맞지 않는 피격 범위
@@ -42,6 +42,10 @@ def shape(s, camera, color=HIT_COLOR):
         _sector(s, camera, color)
     elif isinstance(s, Capsule):
         _capsule(s, camera, color)
+    elif isinstance(s, Rect):
+        l, b = camera.to_screen(s.left, s.bottom)
+        r, t = camera.to_screen(s.right, s.top)
+        draw_rectangle(l, b, r, t, *color)
 
 
 def _sector(s, camera, color, steps=16):

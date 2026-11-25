@@ -16,6 +16,17 @@ class Circle:
         return math.hypot(bx - self.x, by - self.y) <= self.r + br
 
 
+class Rect:
+    """사각형 [left, bottom, right, top]: 노움 대지 균열의 바닥 칸."""
+    def __init__(self, left, bottom, right, top):
+        self.left, self.bottom, self.right, self.top = left, bottom, right, top
+
+    def hits(self, bx, by, br):
+        cx = min(max(bx, self.left), self.right)
+        cy = min(max(by, self.bottom), self.top)
+        return math.hypot(bx - cx, by - cy) <= br
+
+
 class Sector:
     """부채꼴: 근접 기술. (x, y)에서 angle 방향으로 반지름 r, 전체 각도 width."""
     def __init__(self, x, y, r, angle, width):

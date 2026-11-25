@@ -96,6 +96,7 @@ def angle_diff(a, b):
 
 
 class Spirit(Fighter):
+    armor_acts = ()                    # 이 행동 중에는 맞아도 밀려나지 않음 (보스 패턴)
 
     def __init__(self, kind, level, x, y, area, target):
         data = SPIRITS[kind]
@@ -373,6 +374,8 @@ class Spirit(Fighter):
     def react_to_hit(self, from_x, from_y):
         dx, dy = self.x - from_x, self.y - from_y
         n = math.hypot(dx, dy) or 1
+        if self.act in self.armor_acts:                  # 보스 패턴 중: 피해만 받고 밀려나지 않음
+            return
         self.knock_vx, self.knock_vy = dx / n, dy / n
         self.hurt_left = ENEMY_HURT_TIME
         self.begin('hurt')

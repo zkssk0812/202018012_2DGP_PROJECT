@@ -24,6 +24,7 @@ class Attack:
         self.cancelled = False
         self.on_start = None            # 판정이 켜지는 순간 한 번 부르는 함수
         self.lethal = False             # True 면 맞은 대상은 즉사 (방어 무시)
+        self.ratio = None               # 숫자면 맞은 대상의 최대 HP × ratio 만큼 피해 (즉사급, 방어 기술은 적용)
         self._started = False
 
     @property
