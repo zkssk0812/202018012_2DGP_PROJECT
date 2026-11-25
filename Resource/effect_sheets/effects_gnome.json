@@ -1,0 +1,188 @@
+{
+  "image": "effects_gnome.png",
+  "sheet_w": 4096,
+  "sheet_h": 1952,
+  "note": "effects_monster 와 같은 형식. 한 줄 = 이펙트 하나. y는 이미지 맨 위 기준. origin = 칸 왼쪽 위 기준 중심 위치(y 아래로). make_effects_gnome.py 로 만든 그림.",
+  "effects": {
+    "crack_tile": {
+      "x": 0,
+      "y": 0,
+      "label": "대지 균열 예고",
+      "use": "노움 · 갈라지는 바닥 칸",
+      "cell_w": 240,
+      "cell_h": 240,
+      "frames": 4,
+      "fps": 4,
+      "loop": false,
+      "origin": [
+        120,
+        120
+      ]
+    },
+    "rock_pillar": {
+      "x": 0,
+      "y": 240,
+      "label": "바위 기둥",
+      "use": "노움 대지 균열 · 칸에서 솟음",
+      "cell_w": 160,
+      "cell_h": 240,
+      "frames": 6,
+      "fps": 12,
+      "loop": false,
+      "origin": [
+        80,
+        226
+      ]
+    },
+    "boulder": {
+      "x": 0,
+      "y": 480,
+      "label": "큰 바위",
+      "use": "노움 대지의 분노 · 충격파를 가림",
+      "cell_w": 192,
+      "cell_h": 192,
+      "frames": 1,
+      "fps": 1,
+      "loop": true,
+      "origin": [
+        96,
+        162
+      ]
+    },
+    "quake_wave": {
+      "x": 0,
+      "y": 672,
+      "label": "흙빛 충격파",
+      "use": "노움 대지의 분노 · 맵 전체 (크게 늘려 그림)",
+      "cell_w": 512,
+      "cell_h": 512,
+      "frames": 8,
+      "fps": 12,
+      "loop": false,
+      "origin": [
+        256,
+        256
+      ]
+    },
+    "life_stone_0": {
+      "x": 0,
+      "y": 1184,
+      "label": "생명석 0",
+      "use": "노움 생명석 · 프레임 = 맞은 수",
+      "cell_w": 96,
+      "cell_h": 128,
+      "frames": 4,
+      "fps": 1,
+      "loop": true,
+      "origin": [
+        48,
+        104
+      ]
+    },
+    "life_stone_1": {
+      "x": 0,
+      "y": 1312,
+      "label": "생명석 1",
+      "use": "노움 생명석 · 프레임 = 맞은 수",
+      "cell_w": 96,
+      "cell_h": 128,
+      "frames": 4,
+      "fps": 1,
+      "loop": true,
+      "origin": [
+        48,
+        104
+      ]
+    },
+    "life_stone_2": {
+      "x": 0,
+      "y": 1440,
+      "label": "생명석 2",
+      "use": "노움 생명석 · 프레임 = 맞은 수",
+      "cell_w": 96,
+      "cell_h": 128,
+      "frames": 4,
+      "fps": 1,
+      "loop": true,
+      "origin": [
+        48,
+        104
+      ]
+    },
+    "life_stone_3": {
+      "x": 0,
+      "y": 1568,
+      "label": "생명석 3",
+      "use": "노움 생명석 · 프레임 = 맞은 수",
+      "cell_w": 96,
+      "cell_h": 128,
+      "frames": 4,
+      "fps": 1,
+      "loop": true,
+      "origin": [
+        48,
+        104
+      ]
+    },
+    "life_orb_0": {
+      "x": 0,
+      "y": 1696,
+      "label": "생명 기운 0",
+      "use": "노움 생명석과 같은 색 기운",
+      "cell_w": 64,
+      "cell_h": 64,
+      "frames": 6,
+      "fps": 10,
+      "loop": true,
+      "origin": [
+        32,
+        32
+      ]
+    },
+    "life_orb_1": {
+      "x": 0,
+      "y": 1760,
+      "label": "생명 기운 1",
+      "use": "노움 생명석과 같은 색 기운",
+      "cell_w": 64,
+      "cell_h": 64,
+      "frames": 6,
+      "fps": 10,
+      "loop": true,
+      "origin": [
+        32,
+        32
+      ]
+    },
+    "life_orb_2": {
+      "x": 0,
+      "y": 1824,
+      "label": "생명 기운 2",
+      "use": "노움 생명석과 같은 색 기운",
+      "cell_w": 64,
+      "cell_h": 64,
+      "frames": 6,
+      "fps": 10,
+      "loop": true,
+      "origin": [
+        32,
+        32
+      ]
+    },
+    "life_orb_3": {
+      "x": 0,
+      "y": 1888,
+      "label": "생명 기운 3",
+      "use": "노움 생명석과 같은 색 기운",
+      "cell_w": 64,
+      "cell_h": 64,
+      "frames": 6,
+      "fps": 10,
+      "loop": true,
+      "origin": [
+        32,
+        32
+      ]
+    }
+  }
+}

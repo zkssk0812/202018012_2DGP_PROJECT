@@ -46,6 +46,31 @@ ROCK_FALL = 0.35            # 바위가 떨어지는 시간 (그림)
 SHELTER_MARGIN = 10         # 바위 그림자 판정 여유 (바위 반지름보다 이만큼 안쪽이어야 숨은 것)
 
 
+def draw_fx(name, frame, sx, sy, scale=0.5, scale_y=None, alpha=1.0):
+    """노움 이펙트 시트(effects_gnome)의 한 칸을 화면 (sx, sy) 에 그린다 (origin 기준)."""
+    from effect import EffectSheet
+    sheet = EffectSheet.get('gnome')
+    i = sheet.meta['effects'][name]
+    w, h = i['cell_w'], i['cell_h']
+    sy_scale = scale if scale_y is None else scale_y
+    left = i['x'] + min(frame, i['frames'] - 1) * w
+    bottom = sheet.sheet_h - i['y'] - h
+    ox, oy = i['origin']
+    cx, cy = sx + (w / 2 - ox) * scale, sy + (oy - h / 2) * sy_scale
+    if alpha < 1:
+        sheet.image.opacify(max(0.0, alpha))
+    sheet.image.clip_draw(left, bottom, w, h, cx, cy, w * scale, h * sy_scale)
+    if alpha < 1:
+        sheet.image.opacify(1.0)
+
+
+def draw_drop_shadow(sx, sy, r, k):
+    """떨어지는 것의 바닥 그림자 (점점 커짐)."""
+    SDL_SetRenderDrawBlendMode(pico2d.pico2d.renderer, SDL_BLENDMODE_BLEND)
+    w, h = r * k, r * k * 0.35
+    draw_rectangle(sx - w, sy - h, sx + w, sy + h, 0, 0, 0, int(90 * k), filled=True)
+
+
 class Boulder:
     """대지의 분노 때 떨어지는 큰 바위. 몸을 막고, 노움의 충격파를 가린다."""
 
@@ -77,12 +102,11 @@ class Boulder:
         sx, sy = camera.to_screen(self.x, self.y)
         if not self.landed and not self.broken:                     # 떨어지는 중: 위에서 내려옴 + 바닥 그림자
             k = (self.time - self.delay) / ROCK_FALL
-            draw_circle(int(sx), int(sy), int(self.radius * k), 40, 25, 15)
+            draw_drop_shadow(sx, sy - 20, self.radius, k)
             sy += (1 - k) * 400
-        r = self.radius * (1.0 if not self.broken else max(0.0, 1 - self.time / 0.6))
-        if r > 1:
-            draw_rectangle(sx - r, sy - r * 0.7, sx + r, sy + r * 0.9, 110, 85, 70, filled=True)
-            draw_rectangle(sx - r, sy - r * 0.7, sx + r, sy + r * 0.9, 50, 35, 25)
+        k = 1.0 if not self.broken else max(0.0, 1 - self.time / 0.6)
+        if k > 0.02:
+            draw_fx('boulder', 0, sx, sy - 22, scale=self.radius / 78 * k, alpha=k)
 
 
 class LifeStone:
@@ -90,8 +114,9 @@ class LifeStone:
     team = 'spirit'                 # 노움의 공격에는 맞지 않음
     defense = 1
 
-    def __init__(self, owner, order, color, x, y, delay):
-        self.owner, self.order, self.color = owner, order, color
+    def __init__(self, owner, order, ci, x, y, delay):
+        self.owner, self.order, self.ci = owner, order, ci
+        self.color = LIFE_COLORS[ci][1]
         self.x, self.y = x, y
         self.radius = 34
         self.delay = delay
@@ -135,25 +160,22 @@ class LifeStone:
         sx, sy = camera.to_screen(self.x, self.y)
         if not self.landed and not self.broken:
             k = (self.time - self.delay) / ROCK_FALL
-            draw_circle(int(sx), int(sy), int(self.radius * k), 40, 25, 15)
+            draw_drop_shadow(sx, sy - 22, self.radius, k)
             sy += (1 - k) * 450
-        r = self.radius * (1.0 if not self.broken else max(0.0, 1 - self.time / 0.5))
-        if r <= 1:
+        k = 1.0 if not self.broken else max(0.0, 1 - self.time / 0.5)
+        if k <= 0.02:
             return
-        col = (255, 255, 255) if self.flash > 0 else self.color
-        draw_rectangle(sx - r * 0.8, sy - r * 0.6, sx + r * 0.8, sy + r * 1.3, *col, filled=True)
-        draw_rectangle(sx - r * 0.8, sy - r * 0.6, sx + r * 0.8, sy + r * 1.3, 40, 30, 30)
-        for k in range(self.hits):                               # 금 (맞은 수)
-            draw_rectangle(sx - r * 0.6 + k * r * 0.5, sy + r * 0.2, sx - r * 0.5 + k * r * 0.5, sy + r, 30, 20, 20,
-                           filled=True)
+        scale = 0.72 * k * (1.1 if self.flash > 0 else 1.0)          # 맞으면 살짝 커짐
+        draw_fx(f'life_stone_{self.ci}', min(self.hits, 3), sx, sy - 22, scale=scale, alpha=k)
 
 
 class LifeOrb(Essence):
     """생명석과 같은 색의 기운. 짝 생명석을 부수기 전에는 잠겨 있다 (흐리고 흡수할 수 없음)."""
 
-    def __init__(self, owner, order, color, x, y, on_absorbed):
+    def __init__(self, owner, order, ci, x, y, on_absorbed):
         super().__init__(owner, x, y, drop_time=0.9, drains_source=False, on_absorbed=on_absorbed)
-        self.order, self.color = order, color
+        self.order, self.ci = order, ci
+        self.color = LIFE_COLORS[ci][1]
         self.locked = True
         self.gone = False           # True 면 전투 모드가 목록에서 뺀다 (기믹이 끝났을 때)
 
@@ -174,11 +196,12 @@ class LifeOrb(Essence):
             return
         x, y = self.position()
         sx, sy = camera.to_screen(x, y)
-        size = 10 if self.locked else 16
+        scale = 0.55 if self.locked else 0.85 + 0.08 * math.sin(self.time * 6)
         if self.state == 'flying':
-            size *= max(0.2, 1 - self.fly_time / max(self.fly_total, 1e-6))
-        c = tuple(v // 3 for v in self.color) if self.locked else self.color
-        draw_rectangle(sx - size, sy - size, sx + size, sy + size, *c, filled=True)
+            scale *= max(0.2, 1 - self.fly_time / max(self.fly_total, 1e-6))
+        frame = int(self.time * 10) % 6
+        draw_fx(f'life_orb_{self.ci}', frame, sx, sy + 6 * math.sin(self.time * 3), scale=scale,
+                alpha=0.55 if self.locked else 1.0)
 
 
 class Whirl:
@@ -358,9 +381,6 @@ class Gnome(Spirit):
                      skill_id='quake_pillar', hit_fx='slam_impact')
         atk.ratio = HEAVY_HIT
         combat.add_attack(atk)
-        l, b, r, t = cell['rect']
-        combat.add_effect(Effect('monster', 'slam_impact', (l + r) / 2, (b + t) / 2,
-                                 scale=(r - l) / 224 * 1.1))
         self.shake = 1.0
 
     # ── 대지의 분노 ──────────────────────────────────
@@ -461,11 +481,11 @@ class Gnome(Spirit):
         for order, ci in enumerate(colors):
             _, color = LIFE_COLORS[ci]
             x, y = spots[order]
-            self.stones.append(LifeStone(self, order, color, x, y, LIFE_FALL_START + order * LIFE_FALL_GAP))
+            self.stones.append(LifeStone(self, order, ci, x, y, LIFE_FALL_START + order * LIFE_FALL_GAP))
         for order, ci in enumerate(colors):
             _, color = LIFE_COLORS[ci]
             x, y = spots[len(colors) + order]
-            orb = LifeOrb(self, order, color, x, y, on_absorbed=lambda o=order: self.orb_absorbed(o))
+            orb = LifeOrb(self, order, ci, x, y, on_absorbed=lambda o=order: self.orb_absorbed(o))
             self.orbs.append(orb)
             if self.add_essence:
                 self.add_essence(orb)
@@ -562,7 +582,7 @@ class Gnome(Spirit):
         """맵 전체 충격파: 바위 뒤에 숨지 않았으면 즉사급 피해. 바위는 부서진다."""
         self.shake = 1.5
         self.flash = 0.8
-        combat.add_effect(Effect('monster', 'slam_impact', self.x, self.y, scale=5.0))
+        combat.add_effect(Effect('gnome', 'quake_wave', self.x, self.y, scale=6.0))     # 화면을 덮는 흙빛 충격파
         moa = self.opponent
         if moa and not moa.is_down and not moa.is_invincible and not self.sheltered(moa):
             moa.take_hit(max(1, math.ceil(moa.max_hp * HEAVY_HIT)), self.x, self.y)
@@ -595,10 +615,14 @@ class Gnome(Spirit):
             l, b, r, t = c['rect']
             sl, sb = camera.to_screen(l, b)
             sr, st = camera.to_screen(r, t)
-            if c['state'] == 'warn':
+            cx, cy = (sl + sr) / 2, (sb + st) / 2
+            if c['state'] == 'warn':                         # 점점 깊게 갈라지며 깜빡임
                 k = c['time'] / QUAKE_WARN
-                blink = 0.5 + 0.5 * math.sin(c['time'] * (10 + 20 * k))
-                draw_rectangle(sl + 3, sb + 3, sr - 3, st - 3, 200, 60, 40, int(60 + 90 * k * blink), filled=True)
-                draw_rectangle(sl + 3, sb + 3, sr - 3, st - 3, 255, 140, 90)
-            else:
-                draw_rectangle(sl, sb, sr, st, 120, 80, 50, 170, filled=True)
+                blink = 0.75 + 0.25 * math.sin(c['time'] * (10 + 20 * k))
+                draw_fx('crack_tile', int(k * 4), cx, cy, scale=(sr - sl) / QUAKE_TILE,
+                        scale_y=(st - sb) / QUAKE_TILE, alpha=blink)
+            else:                                            # 바위 기둥이 솟았다가 가라앉음
+                frame = int(c['time'] / PILLAR_TIME * 6)
+                draw_fx('crack_tile', 3, cx, cy, scale=(sr - sl) / QUAKE_TILE, scale_y=(st - sb) / QUAKE_TILE,
+                        alpha=max(0.0, 1 - c['time'] / PILLAR_TIME))
+                draw_fx('rock_pillar', frame, cx, sb + 20, scale=(sr - sl) / 160 * 0.95)
